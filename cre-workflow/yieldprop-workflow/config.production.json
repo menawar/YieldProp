@@ -1,0 +1,10 @@
+{
+  "schedule": "0 0 * * * *",
+  "useMockRecommendation": false,
+  "propertyAddress": "",
+  "propertyType": "Single Family",
+  "propertyValuation": 5000,
+  "marketDataRadiusMiles": "5",
+  "rentcastApiUrl": "https://api.rentcast.io/v1",
+  "openaiModel": "gpt-3.5-turbo"
+}

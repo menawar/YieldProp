@@ -1,0 +1,14 @@
+# CRE workflow - never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build artifacts
+dist/
+*.wasm
+tmp.js
+tmp/

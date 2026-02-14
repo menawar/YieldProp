@@ -1,0 +1,548 @@
+# YieldProp AI-Powered Real Estate Yield Optimization Workflow
+# Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 11.1, 11.3
+
+name: yieldprop-optimization
+version: 1.0.0
+description: |
+  AI-powered workflow that orchestrates rental market data fetching, 
+  OpenAI pricing analysis, and automated yield distribution for tokenized real estate.
+
+# Workflow triggers define when the workflow executes
+triggers:
+  # Scheduled trigger - runs daily at midnight UTC
+  # Requirement 2.1: Fetch rental market data at scheduled intervals
+  - type: cron
+    schedule: "0 0 * * *"
+    description: Daily execution for market analysis and price optimization
+    enabled: true
+  
+  # Manual trigger - can be executed on-demand
+  # Requirement 11.2: Execute via manual or scheduled trigger
+  - type: manual
+    description: On-demand execution for testing or immediate price updates
+    enabled: true
+
+# Environment variables required for workflow execution
+# These should be set in .env file
+environment:
+  # RentCast API Configuration
+  RENTCAST_API_KEY:
+    required: true
+    description: API key for RentCast market data service
+  
+  RENTCAST_API_URL:
+    required: true
+    default: "https://api.rentcast.io/v1"
+    description: Base URL for RentCast API
+  
+  # OpenAI API Configuration
+  OPENAI_API_KEY:
+    required: true
+    description: API key for OpenAI GPT-4 analysis
+  
+  OPENAI_MODEL:
+    required: false
+    default: "gpt-4"
+    description: OpenAI model to use for analysis
+  
+  # Property Configuration
+  PROPERTY_ADDRESS:
+    required: true
+    description: Physical address of the tokenized property
+  
+  PROPERTY_TYPE:
+    required: true
+    description: Type of property (Single Family, Condo, Multi-Family, Townhouse)
+  
+  PROPERTY_VALUATION:
+    required: true
+    description: Current property valuation in USD
+  
+  MARKET_DATA_RADIUS_MILES:
+    required: false
+    default: "5"
+    description: Radius in miles for comparable property search
+  
+  # Smart Contract Addresses (Ethereum Sepolia Testnet)
+  PROPERTY_TOKEN_ADDRESS:
+    required: true
+    description: Address of the PropertyToken ERC-1400 contract
+  
+  PRICE_MANAGER_ADDRESS:
+    required: true
+    description: Address of the PriceManager contract
+  
+  YIELD_DISTRIBUTOR_ADDRESS:
+    required: true
+    description: Address of the YieldDistributor contract
+  
+  # Blockchain Configuration
+  ETHEREUM_RPC_URL:
+    required: true
+    description: Ethereum Sepolia RPC endpoint URL
+  
+  PRIVATE_KEY:
+    required: true
+    description: Private key for workflow transactions (must have workflow role)
+    sensitive: true
+
+# Workflow steps execute sequentially with dependency management
+steps:
+  # ============================================================================
+  # STEP 1: Fetch Market Data from RentCast API
+  # ============================================================================
+  # Requirement 2.1: Fetch rental market data at scheduled intervals
+  # Requirement 3.1, 3.2, 3.3: Fetch comparable property data
+  
+  - id: fetch-market-data
+    name: Fetch Market Data
+    type: http-request
+    description: Retrieve comparable property rental rates and market metrics from RentCast API
+    
+    config:
+      method: GET
+      url: "${RENTCAST_API_URL}/properties/comparable"
+      headers:
+        X-API-Key: "${RENTCAST_API_KEY}"
+        Content-Type: "application/json"
+        Accept: "application/json"
+      
+      query_params:
+        address: "${PROPERTY_ADDRESS}"
+        radius: "${MARKET_DATA_RADIUS_MILES}"
+        propertyType: "${PROPERTY_TYPE}"
+        limit: 10
+      
+      timeout: 15000  # 15 seconds
+      
+      # Requirement 13.1: Use cached data on API failure
+      # Requirement 3.4: Return cached data with staleness indicator
+      cache:
+        enabled: true
+        ttl: 86400  # 24 hours (1 day)
+        use_on_error: true
+        key: "market-data-${PROPERTY_ADDRESS}"
+      
+      # Requirement 13.2: Retry with exponential backoff
+      retry:
+        max_attempts: 3
+        initial_delay: 1000  # 1 second
+        backoff_multiplier: 2
+        max_delay: 10000  # 10 seconds
+        retry_on_status: [429, 500, 502, 503, 504]
+    
+    # Requirement 3.5: Format data in standardized structure
+    outputs:
+      market_data:
+        path: "$.data"
+        description: Market data including comparable properties and metrics
+      
+      is_cached:
+        path: "$.cached"
+        default: false
+        description: Indicates if data was retrieved from cache
+      
+      timestamp:
+        path: "$.timestamp"
+        description: Timestamp of data retrieval
+    
+    # Requirement 2.5: Log errors and continue operation
+    on_error:
+      action: continue
+      log: true
+      message: "Failed to fetch market data, workflow will continue with cached data if available"
+
+  # ============================================================================
+  # STEP 2: Analyze Pricing with OpenAI
+  # ============================================================================
+  # NOTE: When using WorkflowOrchestrator (npm run workflow*), this step is executed
+  # by executeAnalyzePricing() in workflowOrchestrator.ts—NOT as a raw HTTP request.
+  # The TypeScript path uses AIPricingAgent with retries, fallback, and currentPrice
+  # from the PriceManager contract.
+  # Requirement 2.2: Call AI_Pricing_Agent with market data payload
+  # Requirement 4.1, 4.2, 4.3, 4.4, 4.5, 4.6: AI pricing analysis
+  
+  - id: analyze-pricing
+    name: AI Pricing Analysis
+    type: http-request
+    description: Generate optimal rental price recommendation using OpenAI GPT-4
+    depends_on:
+      - fetch-market-data
+    
+    config:
+      method: POST
+      url: "https://api.openai.com/v1/chat/completions"
+      headers:
+        Authorization: "Bearer ${OPENAI_API_KEY}"
+        Content-Type: "application/json"
+      
+      body:
+        model: "${OPENAI_MODEL}"
+        messages:
+          - role: "system"
+            content: |
+              You are an expert real estate pricing analyst with deep knowledge of rental markets.
+              Your task is to analyze market data and provide optimal rental price recommendations.
+              Always respond with valid JSON only, no additional text.
+          
+          - role: "user"
+            content: |
+              Analyze the following market data for a tokenized real estate property:
+              
+              PROPERTY DETAILS:
+              - Address: ${PROPERTY_ADDRESS}
+              - Type: ${PROPERTY_TYPE}
+              - Valuation: ${PROPERTY_VALUATION}
+              
+              MARKET DATA:
+              ${steps.fetch-market-data.outputs.market_data}
+              
+              DATA FRESHNESS:
+              - Cached: ${steps.fetch-market-data.outputs.is_cached}
+              - Timestamp: ${steps.fetch-market-data.outputs.timestamp}
+              
+              ANALYSIS REQUIREMENTS:
+              1. Compare current market to comparable properties
+              2. Consider rent growth trends and occupancy rates
+              3. Factor in seasonality (current month: ${current_month})
+              4. Prioritize stable occupancy over maximum rent
+              5. Be conservative with recommendations
+              6. Consider that vacant properties cost more than slightly lower rent
+              
+              Provide your analysis as JSON with this exact structure:
+              {
+                "recommended_price": <monthly rent in USD as integer>,
+                "confidence_score": <0-100 as integer>,
+                "reasoning": "<detailed explanation minimum 100 characters>",
+                "market_comparison": "<how this compares to market average>",
+                "seasonality_factor": "<seasonal considerations>",
+                "risk_factors": "<potential risks or uncertainties>"
+              }
+              
+              IMPORTANT: Return ONLY valid JSON, no markdown, no code blocks, no additional text.
+        
+        temperature: 0.7
+        max_tokens: 1500
+        response_format:
+          type: "json_object"
+      
+      timeout: 30000  # 30 seconds
+      
+      # Requirement 13.2: Retry with exponential backoff on timeout
+      retry:
+        max_attempts: 3
+        initial_delay: 2000  # 2 seconds
+        backoff_multiplier: 2
+        max_delay: 15000  # 15 seconds
+        retry_on_status: [429, 500, 502, 503, 504]
+        retry_on_timeout: true
+    
+    # Requirement 4.2, 4.3: Parse and validate AI response
+    outputs:
+      recommendation:
+        path: "$.choices[0].message.content"
+        transform: json_parse
+        description: AI-generated price recommendation with analysis
+      
+      recommended_price:
+        path: "$.choices[0].message.content.recommended_price"
+        transform: json_parse
+        validate:
+          type: number
+          min: 0
+          max: 100000
+        description: Recommended monthly rental price in USD
+      
+      confidence_score:
+        path: "$.choices[0].message.content.confidence_score"
+        transform: json_parse
+        validate:
+          type: number
+          min: 0
+          max: 100
+        description: Confidence score (0-100)
+      
+      reasoning:
+        path: "$.choices[0].message.content.reasoning"
+        transform: json_parse
+        validate:
+          type: string
+          min_length: 100
+        description: Detailed reasoning for recommendation
+    
+    # Requirement 2.5: Log errors and continue
+    on_error:
+      action: continue
+      log: true
+      message: "Failed to generate AI pricing recommendation"
+
+  # ============================================================================
+  # STEP 3: Submit Recommendation to PriceManager Contract
+  # ============================================================================
+  # Requirement 2.3: Submit Price_Recommendation to on-chain smart contract
+  # Requirement 5.1, 5.2: Store recommendation with timestamp
+  
+  - id: submit-recommendation
+    name: Submit Price Recommendation
+    type: ethereum-transaction
+    description: Submit AI recommendation to PriceManager contract on Ethereum Sepolia
+    depends_on:
+      - analyze-pricing
+    
+    # Only execute if we have a valid recommendation
+    condition: "${steps.analyze-pricing.outputs.recommended_price > 0}"
+    
+    config:
+      rpc_url: "${ETHEREUM_RPC_URL}"
+      private_key: "${PRIVATE_KEY}"
+      chain_id: 11155111  # Sepolia testnet
+      
+      contract_address: "${PRICE_MANAGER_ADDRESS}"
+      function_name: "submitRecommendation"
+      
+      abi: |
+        [
+          {
+            "name": "submitRecommendation",
+            "type": "function",
+            "stateMutability": "nonpayable",
+            "inputs": [
+              {"name": "price", "type": "uint256"},
+              {"name": "confidence", "type": "uint256"},
+              {"name": "reasoning", "type": "string"}
+            ],
+            "outputs": []
+          }
+        ]
+      
+      function_args:
+        - "${steps.analyze-pricing.outputs.recommended_price}"
+        - "${steps.analyze-pricing.outputs.confidence_score}"
+        - "${steps.analyze-pricing.outputs.reasoning}"
+      
+      gas_limit: 200000
+      max_fee_per_gas: 50000000000  # 50 gwei
+      max_priority_fee_per_gas: 2000000000  # 2 gwei
+      
+      # Requirement 13.3: Log transaction failures
+      retry:
+        max_attempts: 2
+        initial_delay: 5000  # 5 seconds
+        retry_on_revert: false
+    
+    # Requirement 5.5: Emit events for tracking
+    outputs:
+      transaction_hash:
+        path: "$.transactionHash"
+        description: Transaction hash of recommendation submission
+      
+      block_number:
+        path: "$.blockNumber"
+        description: Block number where transaction was mined
+      
+      gas_used:
+        path: "$.gasUsed"
+        description: Gas used for transaction
+    
+    # Requirement 2.5: Log errors and continue
+    on_error:
+      action: continue
+      log: true
+      message: "Failed to submit recommendation to blockchain"
+
+  # ============================================================================
+  # STEP 4: Check for Rental Payment in Distribution Pool
+  # ============================================================================
+  # Requirement 2.6: Check if rental payment has been received
+  # Requirement 6.5: Check distribution pool balance
+  
+  - id: check-rental-payment
+    name: Check Rental Payment
+    type: ethereum-call
+    description: Check if rental payment has been received in YieldDistributor pool
+    depends_on:
+      - submit-recommendation
+    
+    config:
+      rpc_url: "${ETHEREUM_RPC_URL}"
+      chain_id: 11155111  # Sepolia testnet
+      
+      contract_address: "${YIELD_DISTRIBUTOR_ADDRESS}"
+      function_name: "getDistributionPool"
+      
+      abi: |
+        [
+          {
+            "name": "getDistributionPool",
+            "type": "function",
+            "stateMutability": "view",
+            "inputs": [],
+            "outputs": [{"name": "", "type": "uint256"}]
+          }
+        ]
+      
+      timeout: 10000  # 10 seconds
+    
+    outputs:
+      pool_balance:
+        path: "$.result"
+        description: Current balance in distribution pool (in wei)
+      
+      pool_balance_usd:
+        path: "$.result"
+        transform: "divide_by_1e6"  # Convert from USDC (6 decimals) to USD
+        description: Pool balance in USD
+    
+    on_error:
+      action: continue
+      log: true
+      message: "Failed to check distribution pool balance"
+
+  # ============================================================================
+  # STEP 5: Distribute Yields to Token Holders (Conditional)
+  # ============================================================================
+  # Requirement 2.6: Trigger yield distribution after rental payment collection
+  # Requirement 7.1, 7.2, 7.3: Calculate and distribute proportional yields
+  
+  - id: distribute-yields
+    name: Distribute Yields
+    type: ethereum-transaction
+    description: Distribute rental yields proportionally to all token holders
+    depends_on:
+      - check-rental-payment
+    
+    # Only execute if pool balance > 0
+    # Requirement 7.5: Skip distribution if pool is empty
+    condition: "${steps.check-rental-payment.outputs.pool_balance > 0}"
+    
+    config:
+      rpc_url: "${ETHEREUM_RPC_URL}"
+      private_key: "${PRIVATE_KEY}"
+      chain_id: 11155111  # Sepolia testnet
+      
+      contract_address: "${YIELD_DISTRIBUTOR_ADDRESS}"
+      function_name: "distributeYields"
+      
+      abi: |
+        [
+          {
+            "name": "distributeYields",
+            "type": "function",
+            "stateMutability": "nonpayable",
+            "inputs": [],
+            "outputs": []
+          }
+        ]
+      
+      gas_limit: 500000  # Higher limit for distribution to multiple holders
+      max_fee_per_gas: 50000000000  # 50 gwei
+      max_priority_fee_per_gas: 2000000000  # 2 gwei
+      
+      retry:
+        max_attempts: 2
+        initial_delay: 5000  # 5 seconds
+        retry_on_revert: false
+    
+    # Requirement 7.6: Emit events for tracking
+    outputs:
+      distribution_tx_hash:
+        path: "$.transactionHash"
+        description: Transaction hash of yield distribution
+      
+      block_number:
+        path: "$.blockNumber"
+        description: Block number where distribution was executed
+      
+      gas_used:
+        path: "$.gasUsed"
+        description: Gas used for distribution
+    
+    on_error:
+      action: continue
+      log: true
+      message: "Failed to distribute yields"
+
+# Workflow-level configuration
+# Requirement 2.5: Log errors and continue operation without halting
+error_handling:
+  strategy: continue  # Continue workflow even if steps fail
+  log_errors: true
+  notify_on_failure: true
+  max_consecutive_failures: 5  # Alert if 5 consecutive runs fail
+
+# Requirement 11.3: Log each step execution with timestamps and results
+logging:
+  level: info
+  include_timestamps: true
+  include_step_outputs: true
+  include_step_duration: true
+  format: json
+  destination: stdout
+
+# Performance monitoring
+monitoring:
+  enabled: true
+  
+  metrics:
+    - name: workflow_execution_time
+      description: Total time to execute workflow
+      unit: milliseconds
+    
+    - name: step_success_rate
+      description: Success rate per step
+      unit: percentage
+    
+    - name: api_response_times
+      description: Response times for external API calls
+      unit: milliseconds
+    
+    - name: transaction_gas_used
+      description: Gas used for blockchain transactions
+      unit: gas
+    
+    - name: recommendation_confidence
+      description: AI recommendation confidence scores
+      unit: percentage
+  
+  # Alert conditions
+  alerts:
+    - condition: "workflow_execution_time > 60000"
+      severity: warning
+      message: "Workflow execution exceeded 60 seconds"
+    
+    - condition: "step_failure_count > 2"
+      severity: error
+      message: "Multiple step failures detected in workflow"
+    
+    - condition: "steps.analyze-pricing.outputs.confidence_score < 50"
+      severity: warning
+      message: "AI recommendation has low confidence score"
+    
+    - condition: "steps.fetch-market-data.outputs.is_cached == true"
+      severity: info
+      message: "Using cached market data (API unavailable)"
+
+# Workflow metadata
+metadata:
+  author: "YieldProp Team"
+  created: "2026-02-10"
+  updated: "2026-02-10"
+  version: "1.0.0"
+  hackathon: "Chainlink Convergence 2026"
+  category: "Real Estate DeFi"
+  tags:
+    - ai-powered
+    - yield-optimization
+    - real-estate
+    - tokenization
+    - defi
+  
+  requirements_validated:
+    - "2.1: Fetch rental market data at scheduled intervals"
+    - "2.2: Call AI_Pricing_Agent with market data payload"
+    - "2.3: Submit Price_Recommendation to on-chain smart contract"
+    - "2.4: Execute successfully via workflow simulation"
+    - "2.5: Log errors and continue operation without halting"
+    - "2.6: Trigger yield distribution after rental payment collection"
+    - "11.1: Configurable via YAML workflow definition"
+    - "11.3: Log each step execution with timestamps and results"

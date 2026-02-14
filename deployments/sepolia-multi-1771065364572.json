@@ -1,0 +1,37 @@
+{
+  "network": "sepolia",
+  "timestamp": "2026-02-14T10:36:04.572Z",
+  "deployer": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+  "multiProperty": true,
+  "MockUSDC": "0xFE8f9565C90d7cD724dF75aC32fb00e5d0103774",
+  "properties": [
+    {
+      "id": "prop-1",
+      "name": "123 Main St",
+      "address": "123 Main St, San Francisco, CA",
+      "propertyType": "Single Family",
+      "valuation": "500000",
+      "contracts": {
+        "PropertyToken": "0xe5c1E59285A78623b0A2B2421Cc60797E3091702",
+        "PriceManager": "0x01f0c5Cd98e117FE06EabEB524d2Fbe8fba3D44a",
+        "YieldDistributor": "0x9298A84A627aE6989713DD7548aA57CB3e194E24",
+        "PropertySale": "0xC42a799E9b2DC392917171E32b8c04B5041E61b6",
+        "MockUSDC": "0xFE8f9565C90d7cD724dF75aC32fb00e5d0103774"
+      }
+    },
+    {
+      "id": "prop-2",
+      "name": "456 Oak Ave",
+      "address": "456 Oak Ave, Los Angeles, CA",
+      "propertyType": "Condo",
+      "valuation": "350000",
+      "contracts": {
+        "PropertyToken": "0xDd31AfC40680331adef7bD30176d3aE736Ebe168",
+        "PriceManager": "0x33bbB0C0DcD656f6483C3F20b1Ee369F3074397e",
+        "YieldDistributor": "0xCC27464858b9709DC9b04AdD2d9001762aeDb512",
+        "PropertySale": "0x667Db2c64EBCBbAdcEe59b45845427F85CbdEe1F",
+        "MockUSDC": "0xFE8f9565C90d7cD724dF75aC32fb00e5d0103774"
+      }
+    }
+  ]
+}

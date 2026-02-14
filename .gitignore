@@ -1,0 +1,53 @@
+node_modules
+.env
+.env.local
+.env.*.local
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/typechain
+/typechain-types
+
+# Foundry / Forge
+/cache_forge/
+/out/
+gasReporterOutput.json
+
+# solidity-coverage files
+/coverage
+/coverage.json
+
+# Hardhat Ignition default folder for deployments against a local node
+ignition/deployments/chain-31337
+
+# Next.js
+.next/
+
+# CRE workflow env (contains API keys, private key)
+cre-workflow/.env
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build files
+dist/
+build/
+

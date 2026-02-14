@@ -1,0 +1,12 @@
+{
+  "schedule": "*/30 * * * * *",
+  "useMockRecommendation": true,
+  "priceManagerAddress": "0xA775Fd6f8240f8F79fbdE07E7246cc077445d5cB",
+  "yieldDistributorAddress": "0xdFE830ce59c3e66c9E6DC8D8F30a23b02998Da00",
+  "propertyAddress": "123 Main St, City, State",
+  "propertyType": "Single Family",
+  "propertyValuation": 5000,
+  "marketDataRadiusMiles": "5",
+  "rentcastApiUrl": "https://api.rentcast.io/v1",
+  "openaiModel": "gpt-3.5-turbo"
+}

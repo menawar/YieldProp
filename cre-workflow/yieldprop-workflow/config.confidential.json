@@ -1,0 +1,11 @@
+{
+  "schedule": "*/30 * * * * *",
+  "useMockRecommendation": false,
+  "useConfidentialHttp": true,
+  "propertyAddress": "123 Main St, City, State",
+  "propertyType": "Single Family",
+  "propertyValuation": 5000,
+  "marketDataRadiusMiles": "5",
+  "rentcastApiUrl": "https://api.rentcast.io/v1",
+  "openaiModel": "gpt-3.5-turbo"
+}

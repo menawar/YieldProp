@@ -1,0 +1,37 @@
+# YieldProp CRE Workflow Configuration
+# See: https://docs.chain.link/cre/reference/project-configuration-ts
+
+staging-settings:
+  user-workflow:
+    workflow-name: "yieldprop-optimization-staging"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.staging.json"
+    secrets-path: "../secrets.yaml"
+
+production-settings:
+  user-workflow:
+    workflow-name: "yieldprop-optimization-production"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.production.json"
+    secrets-path: "../secrets.yaml"
+
+# Phase 5: Confidential HTTP – API keys protected in enclave (Privacy track)
+confidential-settings:
+  user-workflow:
+    workflow-name: "yieldprop-optimization-confidential"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.confidential.json"
+    secrets-path: "../secrets.yaml"
+
+# Tenderly Virtual TestNet - for CRE + Tenderly hackathon track
+# Deploy contracts to Tenderly, then set priceManagerAddress/yieldDistributorAddress
+tenderly-settings:
+  user-workflow:
+    workflow-name: "yieldprop-optimization-tenderly"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.tenderly.json"
+    secrets-path: "../secrets.yaml"
