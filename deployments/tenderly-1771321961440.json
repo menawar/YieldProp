@@ -1,0 +1,27 @@
+{
+  "network": "tenderly",
+  "timestamp": "2026-02-17T09:52:41.440Z",
+  "deployer": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+  "contracts": {
+    "PropertyToken": "0x1B4eAf60EF83e019406ee9F52e0B3130ECb09398",
+    "PriceManager": "0x059FFD7C88567DE2D454D792329573575C50b7df",
+    "YieldDistributor": "0x45b9B58625eC0Bb2aD0Ad78cedcefdd83c735eB8",
+    "PropertySale": "0xe9cFBc092474b3676CAac867Cc35d5A9ADF46852",
+    "MockUSDC": "0x2208bEF57Bac1aEE88a3E791f81e64C9Fd553d0f"
+  },
+  "roles": {
+    "propertyManager": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+    "paymentProcessor": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1"
+  },
+  "whitelist": [
+    "0x166e4bDEfFbCB59B96Ef4c2460C42C60daD0e3f1",
+    "0xaEe2429E13F567BdFb038AcfA82f539197e353b5",
+    "0xc42E04AF0b38c69fF6bA00C62E60d0373C04C994"
+  ],
+  "configuration": {
+    "propertyAddress": "123 Main St, City, State",
+    "propertyType": "Single Family",
+    "propertyValuation": "5000000000000000000000",
+    "initialRentalPrice": "200000000"
+  }
+}

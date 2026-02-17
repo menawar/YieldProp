@@ -2,14 +2,14 @@
  * YieldProp CRE Workflow
  *
  * AI-powered workflow that orchestrates:
- * 1. Fetch rental market data (RentCast API) - Part 2: Offchain Data
- * 2. AI pricing analysis (OpenAI)
+ * 1. Fetch rental market data (Market Data API / Redfin adapter) - Part 2: Offchain Data
+ * 2. AI pricing analysis (OpenAI GPT-4o-mini)
  * 3. Submit recommendation to PriceManager contract (Part 4)
  * 4. Check reserve health – query YieldDistributor pool, log risk when low (Phase 4)
  * 5. Optional: Confidential HTTP – API keys injected via enclave, never exposed (Phase 5)
  *
  * Use useMockRecommendation: true in config for simulation without API keys.
- * Set useConfidentialHttp: true for RentCast/OpenAI to keep API keys private (Privacy track).
+ * Set useConfidentialHttp: true for OpenAI to keep API keys private (Privacy track).
  * Set yieldDistributorAddress + priceManagerAddress (e.g. in config.tenderly.json) for reserve health check.
  * See: https://docs.chain.link/cre/getting-started/part-2-fetching-data-ts
  */
@@ -46,7 +46,7 @@ type Config = {
   propertyType: string;
   propertyValuation: number;
   marketDataRadiusMiles: string;
-  rentcastApiUrl: string;
+  marketDataApiUrl: string;
   openaiModel: string;
   /** Phase 5: Use Confidential HTTP – secrets injected in enclave, API keys never exposed */
   useConfidentialHttp?: boolean;
@@ -85,7 +85,7 @@ type PriceRecommendation = {
   source: "mock" | "openai";
 };
 
-type RentCastResponse = {
+type MarketDataResponse = {
   data?: {
     comparables?: Array<{ price: number }>;
     averageRent?: number;
@@ -210,23 +210,22 @@ function checkReserveHealth(runtime: Runtime<Config>, config: Config): ReserveHe
   };
 }
 
-/** Phase 5: RentCast via Confidential HTTP – API key injected in enclave, never exposed */
-function fetchRentCastDataConfidential(
+/** Phase 5: Market data via Confidential HTTP */
+function fetchMarketDataConfidential(
   sendRequester: ConfidentialHTTPSendRequester,
   apiUrl: string,
   config: Config
 ): MarketData {
   const q = `address=${encodeURIComponent(config.propertyAddress)}&radius=${encodeURIComponent(config.marketDataRadiusMiles)}&propertyType=${encodeURIComponent(config.propertyType)}`;
-  const urlStr = `${apiUrl.replace(/\/$/, "")}/properties/comparable?${q}`;
+  const urlStr = `${apiUrl.replace(/\/$/, "")}?${q}`;
 
   const response = sendRequester
     .sendRequest({
-      vaultDonSecrets: [{ key: "RENTCAST_API_KEY", namespace: "main" }],
+      vaultDonSecrets: [],
       request: {
         url: urlStr,
         method: "GET",
         multiHeaders: {
-          "X-API-Key": { values: ["${RENTCAST_API_KEY}"] },
           "Content-Type": { values: ["application/json"] },
         },
         templatePublicValues: {},
@@ -236,10 +235,10 @@ function fetchRentCastDataConfidential(
     .result();
 
   if (!ok(response)) {
-    throw new Error(`RentCast API failed: status ${response.statusCode}`);
+    throw new Error(`Market Data API failed: status ${response.statusCode}`);
   }
 
-  const body = json(response) as RentCastResponse;
+  const body = json(response) as MarketDataResponse;
   const data = body?.data;
   const comparables = data?.comparables ?? [];
   const prices = comparables.map((c) => c.price);
@@ -251,10 +250,10 @@ function fetchRentCastDataConfidential(
     data?.medianRent ??
     (prices.length > 0
       ? (() => {
-          const sorted = [...prices].sort((a, b) => a - b);
-          const mid = Math.floor(sorted.length / 2);
-          return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-        })()
+        const sorted = [...prices].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      })()
       : 0);
 
   return {
@@ -432,19 +431,19 @@ function getMockRecommendation(config: Config): PriceRecommendation {
       `Mock recommendation for ${config.propertyType} at ${config.propertyAddress}. ` +
       `Based on property valuation of $${config.propertyValuation.toLocaleString()}, ` +
       `suggested monthly rent: $${recommendedPrice.toLocaleString()}. ` +
-      `Use real RentCast + OpenAI for production.`,
+      `Use real Market Data API + OpenAI for production.`,
     source: "mock",
   };
 }
 
-// Fetch market data from RentCast API (Part 2: runInNodeMode pattern)
-function fetchRentCastData(
+// Fetch market data from Market Data API (Redfin adapter)
+function fetchMarketData(
   sendRequester: HTTPSendRequester,
   apiUrl: string,
-  apiKey: string,
+  _apiKey: string,
   config: Config
 ): MarketData {
-  const url = new URL(`${apiUrl}/properties/comparable`);
+  const url = new URL(apiUrl);
   url.searchParams.set("address", config.propertyAddress);
   url.searchParams.set("radius", config.marketDataRadiusMiles);
   url.searchParams.set("propertyType", config.propertyType);
@@ -454,7 +453,6 @@ function fetchRentCastData(
       url: url.toString(),
       method: "GET",
       headers: {
-        "X-API-Key": apiKey,
         "Content-Type": "application/json",
       },
       timeout: "15s",
@@ -462,10 +460,10 @@ function fetchRentCastData(
     .result();
 
   if (!ok(response)) {
-    throw new Error(`RentCast API failed: status ${response.statusCode}`);
+    throw new Error(`Market Data API failed: status ${response.statusCode}`);
   }
 
-  const body = json(response) as RentCastResponse;
+  const body = json(response) as MarketDataResponse;
   const data = body?.data;
   const comparables = data?.comparables ?? [];
   const prices = comparables.map((c) => c.price);
@@ -477,12 +475,12 @@ function fetchRentCastData(
     data?.medianRent ??
     (prices.length > 0
       ? (() => {
-          const sorted = [...prices].sort((a, b) => a - b);
-          const mid = Math.floor(sorted.length / 2);
-          return sorted.length % 2 === 0
-            ? (sorted[mid - 1] + sorted[mid]) / 2
-            : sorted[mid];
-        })()
+        const sorted = [...prices].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0
+          ? (sorted[mid - 1] + sorted[mid]) / 2
+          : sorted[mid];
+      })()
       : 0);
 
   return {
@@ -599,13 +597,13 @@ const onCronTrigger = (runtime: Runtime<Config>): string => {
         .sendRequest(
           runtime,
           (req: ConfidentialHTTPSendRequester, url: string) =>
-            fetchRentCastDataConfidential(req, url, config),
+            fetchMarketDataConfidential(req, url, config),
           consensusIdenticalAggregation<MarketData>()
-        )(config.rentcastApiUrl)
+        )(config.marketDataApiUrl)
         .result();
 
       runtime.log(
-        `RentCast: median rent $${marketData.marketMetrics.medianRent}, ${marketData.comparableCount} comparables`
+        `Market Data: median rent $${marketData.marketMetrics.medianRent}, ${marketData.comparableCount} comparables`
       );
 
       const aiRec = confidentialHttp
@@ -630,22 +628,18 @@ const onCronTrigger = (runtime: Runtime<Config>): string => {
 
       runtime.log(`OpenAI: $${aiRec.price}/mo, confidence ${aiRec.confidence}%`);
     } catch (err) {
-      runtime.log(
-        `Confidential HTTP API error, using mock fallback: ${(err as Error).message}`
-      );
-      recommendation = getMockRecommendation(config);
+      const errMsg = (err as Error).message;
+      runtime.log(`Confidential HTTP API error: ${errMsg}`);
+      throw new Error(`Workflow failed (confidential mode): ${errMsg}`);
     }
   } else {
     try {
       // Standard HTTP – fetch secrets at DON level (cannot call getSecret inside runInNodeMode)
-      const rentcastSecret = runtime.getSecret({ id: "RENTCAST_API_KEY" }).result();
       const openaiSecret = runtime.getSecret({ id: "OPENAI_API_KEY" }).result();
-
-      const rentcastKey = rentcastSecret.value ?? "";
       const openaiKey = openaiSecret.value ?? "";
 
-      if (!rentcastKey || !openaiKey) {
-        throw new Error("RENTCAST_API_KEY or OPENAI_API_KEY not configured");
+      if (!openaiKey) {
+        throw new Error("OPENAI_API_KEY not configured");
       }
 
       const httpClient = new HTTPClient();
@@ -654,13 +648,13 @@ const onCronTrigger = (runtime: Runtime<Config>): string => {
         .sendRequest(
           runtime,
           (req: HTTPSendRequester, url: string, key: string) =>
-            fetchRentCastData(req, url, key, config),
+            fetchMarketData(req, url, key, config),
           consensusIdenticalAggregation<MarketData>()
-        )(config.rentcastApiUrl, rentcastKey)
+        )(config.marketDataApiUrl, "")
         .result();
 
       runtime.log(
-        `RentCast: median rent $${marketData.marketMetrics.medianRent}, ${marketData.comparableCount} comparables`
+        `Market Data: median rent $${marketData.marketMetrics.medianRent}, ${marketData.comparableCount} comparables`
       );
 
       const aiRec = httpClient
@@ -685,10 +679,9 @@ const onCronTrigger = (runtime: Runtime<Config>): string => {
 
       runtime.log(`OpenAI: $${aiRec.price}/mo, confidence ${aiRec.confidence}%`);
     } catch (err) {
-      runtime.log(
-        `API error, using mock fallback: ${(err as Error).message}`
-      );
-      recommendation = getMockRecommendation(config);
+      const errMsg = (err as Error).message;
+      runtime.log(`API error: ${errMsg}`);
+      throw new Error(`Workflow failed (standard mode): ${errMsg}`);
     }
   }
 

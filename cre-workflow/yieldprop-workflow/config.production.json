@@ -1,10 +1,10 @@
 {
-  "schedule": "0 0 * * * *",
+  "schedule": "0 */6 * * *",
   "useMockRecommendation": false,
   "propertyAddress": "",
   "propertyType": "Single Family",
   "propertyValuation": 5000,
   "marketDataRadiusMiles": "5",
-  "rentcastApiUrl": "https://api.rentcast.io/v1",
-  "openaiModel": "gpt-3.5-turbo"
+  "marketDataApiUrl": "https://your-deployed-dashboard.vercel.app/api/market-data",
+  "openaiModel": "gpt-4o-mini"
 }

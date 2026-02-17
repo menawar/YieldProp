@@ -5,23 +5,22 @@
 staging-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: https://eth-sepolia.g.alchemy.com/v2/xrqrupfvoIoAyq-46c0TlqlP9-H2YIFE
+      url: ${SEPOLIA_RPC_URL}
 
 production-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: https://ethereum-sepolia-rpc.publicnode.com
+      url: ${SEPOLIA_RPC_URL}
 
 # Phase 5: Confidential HTTP (Privacy track) – API keys in enclave
 confidential-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: https://ethereum-sepolia-rpc.publicnode.com
+      url: ${SEPOLIA_RPC_URL}
 
 # Tenderly Virtual TestNet - for CRE + Tenderly hackathon track
-# Replace the url below with your TENDERLY_VIRTUAL_TESTNET_RPC from Tenderly dashboard
-# See: https://docs.tenderly.co/virtual-testnets/quickstart
+# Set TENDERLY_VIRTUAL_TESTNET_RPC in your .env file
 tenderly-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: https://virtual.sepolia.eu.rpc.tenderly.co/de868635-7bda-4a76-a272-05cd365c6aa8
+      url: ${TENDERLY_VIRTUAL_TESTNET_RPC}

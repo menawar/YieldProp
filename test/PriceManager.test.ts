@@ -37,7 +37,7 @@ describe("PriceManager", function () {
         INITIAL_PRICE,
         propertyManager.address
       );
-      
+
       // Check the event was emitted by querying the deployment transaction
       const deployTx = newPriceManager.deploymentTransaction();
       await expect(deployTx)
@@ -83,7 +83,7 @@ describe("PriceManager", function () {
 
     it("Should store recommendation with correct data", async function () {
       await priceManager.connect(propertyManager).submitRecommendation(recommendedPrice, confidence, reasoning);
-      
+
       const recommendation = await priceManager.getRecommendation(1);
       expect(recommendation.id).to.equal(1);
       expect(recommendation.recommendedPrice).to.equal(recommendedPrice);
@@ -263,7 +263,7 @@ describe("PriceManager", function () {
       await priceManager.connect(propertyManager).submitRecommendation(price1, confidence, reasoning);
       await priceManager.connect(propertyManager).submitRecommendation(price2, confidence, reasoning);
       await priceManager.connect(propertyManager).submitRecommendation(price3, confidence, reasoning);
-      
+
       // Accept first, reject second, leave third pending
       await priceManager.connect(propertyManager).acceptRecommendation(1);
       await priceManager.connect(propertyManager).rejectRecommendation(2);
@@ -304,7 +304,7 @@ describe("PriceManager", function () {
         INITIAL_PRICE,
         propertyManager.address
       );
-      
+
       const latest = await newPriceManager.getLatestRecommendation();
       expect(latest.id).to.equal(0);
       expect(latest.recommendedPrice).to.equal(0);
@@ -382,23 +382,32 @@ describe("PriceManager", function () {
   });
 
   describe("Edge Cases", function () {
-    it("Should handle very large price values", async function () {
-      const largePrice = ethers.parseUnits("1000000", 6); // $1M
+    it("Should revert for price values outside ±50% bounds", async function () {
+      const largePrice = ethers.parseUnits("1000000", 6); // $1M vs $2000 initial
       const reasoning = "Luxury property pricing.";
-      
+
       await expect(
         priceManager.connect(propertyManager).submitRecommendation(largePrice, 95, reasoning)
+      ).to.be.revertedWithCustomError(priceManager, "PriceOutOfBounds");
+    });
+
+    it("Should accept prices within ±50% bounds", async function () {
+      const withinBoundsPrice = ethers.parseUnits("2500", 6); // $2500 is within 50% of $2000
+      const reasoning = "Premium property pricing.";
+
+      await expect(
+        priceManager.connect(propertyManager).submitRecommendation(withinBoundsPrice, 95, reasoning)
       ).to.not.be.reverted;
     });
 
     it("Should accept reasoning at max length (512 bytes)", async function () {
       const maxReasoning = "A".repeat(512);
       const price = ethers.parseUnits("2100", 6);
-      
+
       await expect(
         priceManager.connect(propertyManager).submitRecommendation(price, 85, maxReasoning)
       ).to.not.be.reverted;
-      
+
       const rec = await priceManager.getRecommendation(1);
       expect(rec.reasoning).to.equal(maxReasoning);
     });
@@ -406,29 +415,29 @@ describe("PriceManager", function () {
     it("Should revert when reasoning exceeds max length (512 bytes)", async function () {
       const tooLongReasoning = "A".repeat(513);
       const price = ethers.parseUnits("2100", 6);
-      
+
       await expect(
         priceManager.connect(propertyManager).submitRecommendation(price, 85, tooLongReasoning)
       ).to.be.revertedWithCustomError(priceManager, "ReasoningTooLong");
     });
 
-    it("Should handle minimum valid price (1 unit)", async function () {
+    it("Should revert for minimum valid price (1 unit) when it violates bounds", async function () {
       const minPrice = 1;
       const reasoning = "Minimum price test.";
-      
+
       await expect(
         priceManager.connect(propertyManager).submitRecommendation(minPrice, 50, reasoning)
-      ).to.not.be.reverted;
+      ).to.be.revertedWithCustomError(priceManager, "PriceOutOfBounds");
     });
 
     it("Should correctly handle timestamp recording", async function () {
       const price = ethers.parseUnits("2100", 6);
       const reasoning = "Test timestamp.";
-      
+
       const blockBefore = await ethers.provider.getBlock("latest");
       await priceManager.connect(propertyManager).submitRecommendation(price, 85, reasoning);
       const blockAfter = await ethers.provider.getBlock("latest");
-      
+
       const rec = await priceManager.getRecommendation(1);
       expect(rec.timestamp).to.be.gte(blockBefore!.timestamp);
       expect(rec.timestamp).to.be.lte(blockAfter!.timestamp);

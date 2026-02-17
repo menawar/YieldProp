@@ -75,6 +75,10 @@ contract PriceManager is AccessControlDefaultAdminRules {
     
     /// @dev Maximum length for reasoning string (prevents runaway storage costs)
     uint256 public constant MAX_REASONING_LENGTH = 512;
+
+    /// @dev Maximum price deviation from current price (50% = 5000 basis points)
+    /// Prevents rogue AI recommendations from setting extreme prices
+    uint256 public constant MAX_PRICE_DEVIATION_BPS = 5000;
     
     // ============ Errors ============
     
@@ -85,6 +89,7 @@ contract PriceManager is AccessControlDefaultAdminRules {
     error RecommendationAlreadyProcessed();
     error EmptyReasoning();
     error ReasoningTooLong(uint256 length, uint256 max);
+    error PriceOutOfBounds(uint256 price, uint256 lowerBound, uint256 upperBound);
     
     // ============ Constructor ============
     
@@ -125,6 +130,16 @@ contract PriceManager is AccessControlDefaultAdminRules {
         if (bytes(reasoning).length == 0) revert EmptyReasoning();
         if (bytes(reasoning).length > MAX_REASONING_LENGTH) {
             revert ReasoningTooLong(bytes(reasoning).length, MAX_REASONING_LENGTH);
+        }
+
+        // Price bounds check: reject if deviation > 50% from current price
+        // Skip bounds check on the very first recommendation (currentRentalPrice is initial)
+        if (currentRentalPrice > 0) {
+            uint256 lowerBound = currentRentalPrice * (10000 - MAX_PRICE_DEVIATION_BPS) / 10000;
+            uint256 upperBound = currentRentalPrice * (10000 + MAX_PRICE_DEVIATION_BPS) / 10000;
+            if (price < lowerBound || price > upperBound) {
+                revert PriceOutOfBounds(price, lowerBound, upperBound);
+            }
         }
         
         recommendationCount++;

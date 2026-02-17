@@ -1,62 +1,31 @@
-/**
- * Mint Mock USDC to an address on Sepolia for testing
- * Usage: npx hardhat run scripts/mint-usdc.ts --network sepolia
- *
- * Env vars:
- *   MOCK_USDC_ADDRESS - Mock USDC contract (default: from deployments/sepolia-*.json)
- *   MINT_AMOUNT      - Amount in USDC, e.g. "10000" (default: 10000)
- *   MINT_TO          - Recipient address (default: 0xaEe2429E13F567BdFb038AcfA82f539197e353b5)
- */
-
 import { ethers } from "hardhat";
-import * as fs from "fs";
-import * as path from "path";
-
-const DEFAULT_RECIPIENT = "0xaEe2429E13F567BdFb038AcfA82f539197e353b5";
-const DEFAULT_AMOUNT = "10000"; // 10,000 USDC
 
 async function main() {
-  const recipient = process.env.MINT_TO || DEFAULT_RECIPIENT;
-  const amountStr = process.env.MINT_AMOUNT || DEFAULT_AMOUNT;
-  const amount = ethers.parseUnits(amountStr, 6); // USDC has 6 decimals
+  const USDC_ADDRESS = "0x6cBFD98EFa90681EA824E57E594822e1B893d42e";
+  const MINT_AMOUNT = ethers.parseUnits("300000", 6); // 300,000 USDC
 
-  let mockUsdcAddress = process.env.MOCK_USDC_ADDRESS;
-  if (!mockUsdcAddress) {
-    const deploymentsDir = path.join(__dirname, "..", "deployments");
-    const files = fs.readdirSync(deploymentsDir).filter((f) => f.endsWith(".json"));
-    const latest = files.sort().reverse()[0];
-    if (latest) {
-      const deployment = JSON.parse(
-        fs.readFileSync(path.join(deploymentsDir, latest), "utf-8")
-      );
-      mockUsdcAddress = deployment.MockUSDC || deployment.contracts?.MockUSDC;
-    }
+  const RECIPIENTS = [
+    "0x166e4bDEfFbCB59B96Ef4c2460C42C60daD0e3f1",
+    "0xaEe2429E13F567BdFb038AcfA82f539197e353b5",
+    "0xc42E04AF0b38c69fF6bA00C62E60d0373C04C994",
+  ];
+
+  const usdc = await ethers.getContractAt("MockERC20", USDC_ADDRESS);
+
+  for (const recipient of RECIPIENTS) {
+    console.log(`Minting ${ethers.formatUnits(MINT_AMOUNT, 6)} USDC to ${recipient}...`);
+    const tx = await usdc.mint(recipient, MINT_AMOUNT);
+    await tx.wait();
+    const balance = await usdc.balanceOf(recipient);
+    console.log(`  ✅ Balance: ${ethers.formatUnits(balance, 6)} USDC`);
   }
 
-  if (!mockUsdcAddress) {
-    throw new Error(
-      "MOCK_USDC_ADDRESS not set and no deployment found. Set MOCK_USDC_ADDRESS in .env or deploy first."
-    );
-  }
-
-  const [signer] = await ethers.getSigners();
-  console.log("Minting from:", signer.address);
-  console.log("Mock USDC at:", mockUsdcAddress);
-  console.log("Recipient:", recipient);
-  console.log("Amount:", amountStr, "USDC\n");
-
-  const mockUsdc = await ethers.getContractAt("MockERC20", mockUsdcAddress);
-  const tx = await mockUsdc.mint(recipient, amount);
-  await tx.wait();
-
-  console.log("Done. Tx:", tx.hash);
-  const balance = await mockUsdc.balanceOf(recipient);
-  console.log("New balance:", ethers.formatUnits(balance, 6), "USDC");
+  console.log("\n🎉 All minting complete!");
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error("❌ Minting failed:", error);
     process.exit(1);
   });

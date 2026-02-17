@@ -1,12 +1,12 @@
 {
   "schedule": "*/30 * * * * *",
-  "useMockRecommendation": true,
+  "useMockRecommendation": false,
   "priceManagerAddress": "0xF04dcCaEd690fcb1cA5725E20a56616f66DFE208",
   "yieldDistributorAddress": "0xcc0bf465bD67F56f47c7328Fc6B6B7BbA740eF89",
-  "propertyAddress": "123 Main St, City, State",
+  "propertyAddress": "123 Main St, San Francisco, CA",
   "propertyType": "Single Family",
   "propertyValuation": 5000,
   "marketDataRadiusMiles": "5",
-  "rentcastApiUrl": "https://api.rentcast.io/v1",
-  "openaiModel": "gpt-3.5-turbo"
+  "marketDataApiUrl": "http://localhost:3000/api/market-data",
+  "openaiModel": "gpt-4o-mini"
 }

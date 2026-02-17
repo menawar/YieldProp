@@ -23,9 +23,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "YieldProp - AI-Powered Real Estate Yield Optimization",
+  title: "YieldProp — AI-Powered Real Estate Yield Optimization",
   description:
-    "Tokenized real estate with automated yield distribution powered by AI and Chainlink",
+    "Tokenized real estate with automated yield distribution powered by AI and Chainlink CRE. Invest in fractional property tokens, earn rental yields automatically.",
+  keywords: ["real estate", "tokenization", "yield", "blockchain", "Chainlink", "AI", "DeFi"],
+  openGraph: {
+    title: "YieldProp — AI-Powered Real Estate Yield Optimization",
+    description: "Tokenized real estate with automated yield distribution powered by AI and Chainlink CRE.",
+    type: "website",
+    siteName: "YieldProp",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "YieldProp — AI-Powered Real Estate Yield Optimization",
+    description: "Tokenized real estate with automated yield distribution powered by AI and Chainlink CRE.",
+  },
 };
 
 export default function RootLayout({

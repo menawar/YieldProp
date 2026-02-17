@@ -5,11 +5,11 @@ import { injected, walletConnect } from 'wagmi/connectors'
 // Contract addresses - fallback from multi-property deployment (prop-1)
 // See deployments/sepolia-multi-*.json; use sync:addresses to update .env.local
 export const CONTRACTS = {
-  PropertyToken: (process.env.NEXT_PUBLIC_PROPERTY_TOKEN_ADDRESS || '0x071eB7911Cf4D28a4E558eF0EF6EaAF2C77c596F') as `0x${string}`,
-  PriceManager: (process.env.NEXT_PUBLIC_PRICE_MANAGER_ADDRESS || '0xA775Fd6f8240f8F79fbdE07E7246cc077445d5cB') as `0x${string}`,
-  YieldDistributor: (process.env.NEXT_PUBLIC_YIELD_DISTRIBUTOR_ADDRESS || '0xdFE830ce59c3e66c9E6DC8D8F30a23b02998Da00') as `0x${string}`,
-  PropertySale: (process.env.NEXT_PUBLIC_PROPERTY_SALE_ADDRESS || '0x5570c6df7efb4F1B0A5637a344d8f6A6215BF099') as `0x${string}`,
-  MockUSDC: (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS || '0x5545b442C06cC8E4FD329D2C6DebAe4C0410A1e9') as `0x${string}`,
+  PropertyToken: (process.env.NEXT_PUBLIC_PROPERTY_TOKEN_ADDRESS || '0x48b6bc9A045CC73B9511f01eB03e0c4ada10934A') as `0x${string}`,
+  PriceManager: (process.env.NEXT_PUBLIC_PRICE_MANAGER_ADDRESS || '0xd06d573BbC46B1B47bcF8CC7729663a071F8B590') as `0x${string}`,
+  YieldDistributor: (process.env.NEXT_PUBLIC_YIELD_DISTRIBUTOR_ADDRESS || '0x84a6F5a99CC64C4061228214C99B38AC80e12b46') as `0x${string}`,
+  PropertySale: (process.env.NEXT_PUBLIC_PROPERTY_SALE_ADDRESS || '0xa908376dAE4611af71367f443648c1fd79523b03') as `0x${string}`,
+  MockUSDC: (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS || '0x6cBFD98EFa90681EA824E57E594822e1B893d42e') as `0x${string}`,
 } as const
 
 // Wagmi configuration for Sepolia testnet
@@ -23,7 +23,7 @@ export const config = createConfig({
   ],
   transports: {
     [sepolia.id]: http(
-      process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 
+      process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ||
       'https://rpc.sepolia.org'
     ),
   },

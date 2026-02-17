@@ -8,20 +8,20 @@ async function main() {
   console.log("📝 Deploying contracts with account:", deployer.address);
   console.log("💰 Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH\n");
 
-  // Configuration
-  const PROPERTY_ADDRESS = "123 Main St, San Francisco, CA";
-  const PROPERTY_TYPE = "Single Family";
-  const PROPERTY_VALUATION = ethers.parseEther("5000"); // $5,000
+  // Configuration from environment variables
+  const PROPERTY_ADDRESS = process.env.PROPERTY_ADDRESS || "123 Main St, San Francisco, CA";
+  const PROPERTY_TYPE = process.env.PROPERTY_TYPE || "Single Family";
+  const PROPERTY_VALUATION = ethers.parseEther(process.env.PROPERTY_VALUATION || "5000");
   const INITIAL_RENTAL_PRICE = ethers.parseUnits("200", 6); // $200 USDC (6 decimals)
-  
+
   // Role addresses
-  const PROPERTY_MANAGER = deployer.address; // Using deployer as property manager for simplicity
-  const PAYMENT_PROCESSOR = deployer.address; // Using deployer as payment processor for demo
-  
-  // Whitelist addresses (provided by user)
-  const WHITELIST_ADDRESSES = [
-    "0x2330e78377A36016B99d5a1376b28dA60f54e0F1"
-  ];
+  const PROPERTY_MANAGER = process.env.PROPERTY_MANAGER_ADDRESS || deployer.address;
+  const PAYMENT_PROCESSOR = deployer.address;
+
+  // Whitelist addresses from env (comma-separated) or default to deployer
+  const WHITELIST_ADDRESSES = process.env.WHITELIST_ADDRESSES
+    ? process.env.WHITELIST_ADDRESSES.split(",").map(a => a.trim())
+    : [deployer.address];
 
   // Step 1: Deploy PropertyToken
   console.log("📄 Step 1: Deploying PropertyToken...");
@@ -125,9 +125,9 @@ async function main() {
   console.log("✅ Approved PropertySale to transfer tokens from deployer");
 
   // Summary
-  console.log("=" .repeat(80));
+  console.log("=".repeat(80));
   console.log("🎉 DEPLOYMENT COMPLETE!");
-  console.log("=" .repeat(80));
+  console.log("=".repeat(80));
   console.log("\n📋 Deployed Contract Addresses:");
   console.log("-".repeat(80));
   console.log("PropertyToken:     ", propertyTokenAddress);
@@ -136,13 +136,13 @@ async function main() {
   console.log("PropertySale:      ", propertySaleAddress);
   console.log("Mock USDC:         ", stablecoinAddress);
   console.log("-".repeat(80));
-  
+
   console.log("\n👥 Role Addresses:");
   console.log("-".repeat(80));
   console.log("Property Manager:   ", PROPERTY_MANAGER);
   console.log("Payment Processor: ", PAYMENT_PROCESSOR);
   console.log("-".repeat(80));
-  
+
   console.log("\n✅ Whitelisted Addresses:");
   console.log("-".repeat(80));
   WHITELIST_ADDRESSES.forEach((addr, i) => {
@@ -202,7 +202,7 @@ async function main() {
   if (!fs.existsSync(deploymentsDir)) {
     fs.mkdirSync(deploymentsDir);
   }
-  
+
   const networkLabel = process.env.HARDHAT_NETWORK === "tenderly" ? "tenderly" : "sepolia";
   const deploymentFile = path.join(deploymentsDir, `${networkLabel}-${Date.now()}.json`);
   fs.writeFileSync(deploymentFile, JSON.stringify(deploymentInfo, null, 2));

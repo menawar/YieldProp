@@ -1,0 +1,27 @@
+{
+  "network": "sepolia",
+  "timestamp": "2026-02-17T10:05:15.396Z",
+  "deployer": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+  "contracts": {
+    "PropertyToken": "0x48b6bc9A045CC73B9511f01eB03e0c4ada10934A",
+    "PriceManager": "0xd06d573BbC46B1B47bcF8CC7729663a071F8B590",
+    "YieldDistributor": "0x84a6F5a99CC64C4061228214C99B38AC80e12b46",
+    "PropertySale": "0xa908376dAE4611af71367f443648c1fd79523b03",
+    "MockUSDC": "0x6cBFD98EFa90681EA824E57E594822e1B893d42e"
+  },
+  "roles": {
+    "propertyManager": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+    "paymentProcessor": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1"
+  },
+  "whitelist": [
+    "0x166e4bDEfFbCB59B96Ef4c2460C42C60daD0e3f1",
+    "0xaEe2429E13F567BdFb038AcfA82f539197e353b5",
+    "0xc42E04AF0b38c69fF6bA00C62E60d0373C04C994"
+  ],
+  "configuration": {
+    "propertyAddress": "123 Main St, City, State",
+    "propertyType": "Single Family",
+    "propertyValuation": "5000000000000000000000",
+    "initialRentalPrice": "200000000"
+  }
+}
