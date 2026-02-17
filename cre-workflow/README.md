@@ -101,51 +101,103 @@ When `useConfidentialHttp: true`, RentCast and OpenAI calls use the **Confidenti
 - Template placeholders (`${RENTCAST_API_KEY}`, `${OPENAI_API_KEY}`) are substituted in headers by the enclave
 - **Note:** Confidential HTTP is experimental; currently available for `cre workflow simulate` only. See [Confidential API Interactions](https://docs.chain.link/cre/guides/workflow/using-confidential-http-client).
 
-## Phase 6: Tenderly + CRE (Bonus Track)
+## Phase 6: Tenderly + CRE (Hackathon Track)
 
-Run CRE workflows against a **Tenderly Virtual TestNet** for the Tenderly + CRE hackathon track.
+Run CRE workflows against a **Tenderly Virtual TestNet** for the [Tenderly x CRE hackathon track](https://chain.link/hackathon/prizes).
+
+### Why Tenderly + CRE?
+
+| Benefit | How It Helps |
+|---------|-------------|
+| **Zero-setup fork** | Fork Sepolia in seconds — no faucet, no waiting for confirmations |
+| **State sync** | Real-time sync with parent network keeps test data fresh |
+| **Built-in explorer** | View all deployment txns, contract state, and CRE interactions |
+| **Debugging** | Tenderly debugger shows exact execution trace and state changes |
+| **Reproducible** | Team members share the same Virtual TestNet for consistent testing |
 
 ### 6.1 Create Virtual TestNet
 
+**Option A — Via REST API (recommended):**
+
+```bash
+# Get access key at https://dashboard.tenderly.co → Settings → API Access Tokens
+TENDERLY_ACCESS_KEY=<key> node scripts/create-tenderly-vnet.js
+```
+
+This creates a Sepolia fork with public explorer, and auto-updates `.env` + `project.yaml`.
+
+**Option B — Via Dashboard:**
+
 1. Go to [Tenderly Dashboard](https://dashboard.tenderly.co) → **Virtual TestNets** → **Create**
-2. Fork **Sepolia** (chainId 11155111) or Mainnet
-3. Copy the **RPC URL** (e.g. `https://virtual.sepolia.rpc.tenderly.co/<your-account>/<project>/<vnet-id>`)
+2. Fork **Sepolia** (chainId 11155111), enable **Public Explorer** and **State Sync**
+3. Copy the **Admin RPC URL**
 4. Add to project `.env`:
    ```bash
    TENDERLY_VIRTUAL_TESTNET_RPC=https://virtual.sepolia.rpc.tenderly.co/...
    TENDERLY_CHAIN_ID=11155111
    ```
 
-### 6.2 Run CRE Simulation Against Virtual TestNet
+### 6.2 Deploy + Simulate (Full Flow)
 
-1. **Configure RPC**: `node scripts/setup-tenderly-cre.js` (updates `cre-workflow/project.yaml`)
-2. **Deploy contracts** to your Virtual TestNet:
-   ```bash
-   npm run deploy:tenderly
-   ```
-3. **Update addresses** in `cre-workflow/yieldprop-workflow/config.tenderly.json`:
-   - `priceManagerAddress`
-   - `yieldDistributorAddress`
-4. **Simulate CRE workflow**:
-   ```bash
-   npm run cre:simulate:tenderly
-   ```
+One command runs the entire pipeline:
 
-This runs the full workflow (AI recommendation + reserve health check) against your Tenderly fork.
+```bash
+npm run tenderly:full
+```
 
-### 6.3 Virtual TestNet Explorer
+This executes:
+1. `setup:tenderly` — injects Tenderly RPC into `cre-workflow/project.yaml`
+2. `deploy:tenderly` — deploys all 5 contracts, auto-updates `config.tenderly.json` with fresh addresses
+3. `verify:tenderly` — checks all contracts are deployed and CRE config is aligned
+4. `cre:simulate:tenderly` — runs the full CRE workflow against Tenderly
 
-- **Dashboard**: [Tenderly Virtual TestNet Explorer](https://dashboard.tenderly.co/explorer) – view transactions, contracts, wallets
-- **Your TestNet**: In the [Tenderly Dashboard](https://dashboard.tenderly.co), open your Virtual TestNet and use the **Explorer** tab. Enable **Public Explorer** (globe icon) to share a public URL for hackathon demos.
-- **Docs**: [Virtual TestNet Explorer](https://docs.tenderly.co/virtual-testnets/virtual-testnet-explorer) – private/public explorers, contract visibility
+Or step by step:
 
-## Next Steps
+```bash
+npm run setup:tenderly          # 1. Configure CRE with Tenderly RPC
+npm run deploy:tenderly         # 2. Deploy contracts to Tenderly VNet
+npm run verify:tenderly         # 3. Verify deployment + CRE config
+npm run cre:simulate:tenderly   # 4. Run CRE workflow simulation
+```
 
-- [Part 4: Writing Onchain](https://docs.chain.link/cre/getting-started/part-4-writing-onchain) - Submit to `PriceManager.submitRecommendation`
-- Phase 4.3 (optional): Chainlink Data Feed for ETH/USD to compare property valuation
+### 6.3 What the CRE Workflow Does on Tenderly
+
+When running `cre:simulate:tenderly`, the workflow:
+
+1. **Triggers** on a 30-second cron schedule
+2. **Fetches** rental market data from RentCast API (HTTP GET with consensus)
+3. **Generates** AI pricing recommendation from OpenAI (HTTP POST with consensus)
+4. **Reads on-chain state** from Tenderly Virtual TestNet:
+   - `YieldDistributor.distributionPool()` — current USDC reserve
+   - `PriceManager.getCurrentRentalPrice()` — expected monthly rent
+5. **Checks reserve health** — flags `RESERVE_RISK` when pool < expected rent
+6. **Outputs** JSON with recommendation + reserve health
+
+### 6.4 Virtual TestNet Explorer
+
+After deploying, view your contracts and transactions:
+
+- Open your VNet in the [Tenderly Dashboard](https://dashboard.tenderly.co)
+- Click the **Explorer** tab to see:
+  - All deployment transactions with gas costs
+  - Deployed contract addresses and bytecode
+  - Contract state reads from CRE workflow
+  - Wallet balances and token transfers
+- Enable **Public Explorer** (globe icon) for a shareable URL
+
+### 6.5 Deployment Artifacts
+
+After `npm run deploy:tenderly`:
+- **Deployment JSON**: `deployments/tenderly-<timestamp>.json` — all contract addresses, deployer, config
+- **Verification report**: `deployments/tenderly-verification-<timestamp>.json` — bytecode checks, CRE config alignment
+- **CRE config**: `cre-workflow/yieldprop-workflow/config.tenderly.json` — auto-updated with deployed addresses
 
 ## References
 
 - [Chainlink CRE Documentation](https://docs.chain.link/cre)
-- [Project Configuration (TypeScript)](https://docs.chain.link/cre/reference/project-configuration-ts)
-- [Simulating Workflows](https://docs.chain.link/cre/guides/operations/simulating-workflows)
+- [CRE Getting Started (TypeScript)](https://docs.chain.link/cre/getting-started/part-1-project-setup-ts)
+- [CRE Part 2: Fetching Offchain Data](https://docs.chain.link/cre/getting-started/part-2-fetching-data-ts)
+- [CRE Confidential HTTP](https://docs.chain.link/cre/guides/workflow/using-confidential-http-client)
+- [Tenderly Virtual TestNets](https://docs.tenderly.co/virtual-testnets)
+- [Tenderly Virtual TestNet Explorer](https://docs.tenderly.co/virtual-testnets/virtual-testnet-explorer)
+- [Tenderly REST API](https://docs.tenderly.co/virtual-testnets/develop/rest-api)

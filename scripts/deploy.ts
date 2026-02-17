@@ -173,7 +173,7 @@ async function main() {
 
   // Save deployment info to file
   const deploymentInfo = {
-    network: "sepolia",
+    network: process.env.HARDHAT_NETWORK ?? "sepolia",
     timestamp: new Date().toISOString(),
     deployer: deployer.address,
     contracts: {
@@ -203,7 +203,8 @@ async function main() {
     fs.mkdirSync(deploymentsDir);
   }
   
-  const deploymentFile = path.join(deploymentsDir, `sepolia-${Date.now()}.json`);
+  const networkLabel = process.env.HARDHAT_NETWORK === "tenderly" ? "tenderly" : "sepolia";
+  const deploymentFile = path.join(deploymentsDir, `${networkLabel}-${Date.now()}.json`);
   fs.writeFileSync(deploymentFile, JSON.stringify(deploymentInfo, null, 2));
   console.log("\n💾 Deployment info saved to:", deploymentFile);
 

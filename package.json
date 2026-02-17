@@ -37,9 +37,13 @@
     "cre:setup": "cd cre-workflow/yieldprop-workflow && bun install",
     "cre:simulate": "cd cre-workflow && cre workflow simulate yieldprop-workflow --target staging-settings",
     "cre:simulate:confidential": "cd cre-workflow && cre workflow simulate yieldprop-workflow --target confidential-settings",
-    "cre:simulate:tenderly": "node scripts/setup-tenderly-cre.js && cd cre-workflow && cre workflow simulate yieldprop-workflow --target tenderly-settings",
+    "cre:simulate:tenderly": "node scripts/setup-tenderly-cre.js && cd cre-workflow && cre workflow simulate yieldprop-workflow --target tenderly-settings --broadcast",
     "deploy:tenderly": "hardhat run scripts/deploy.ts --network tenderly",
-    "setup:tenderly": "node scripts/setup-tenderly-cre.js"
+    "deploy:consumer:tenderly": "hardhat run scripts/deploy-consumer.ts --network tenderly",
+    "setup:tenderly": "node scripts/setup-tenderly-cre.js",
+    "create:tenderly-vnet": "node scripts/create-tenderly-vnet.js",
+    "verify:tenderly": "node scripts/verify-tenderly-deployment.js",
+    "tenderly:full": "npm run setup:tenderly && npm run deploy:tenderly && npm run verify:tenderly && npm run cre:simulate:tenderly"
   },
   "keywords": [
     "blockchain",

@@ -31,11 +31,12 @@ import {
   LAST_FINALIZED_BLOCK_NUMBER,
   encodeCallMsg,
   bytesToHex,
+  hexToBase64,
   type Runtime,
   type HTTPSendRequester,
   type ConfidentialHTTPSendRequester,
 } from "@chainlink/cre-sdk";
-import { encodeFunctionData, decodeFunctionResult, zeroAddress } from "viem";
+import { encodeFunctionData, decodeFunctionResult, encodeAbiParameters, parseAbiParameters, zeroAddress } from "viem";
 import { YieldDistributorAbi, PriceManagerAbi } from "./abi.js";
 
 type Config = {
@@ -53,6 +54,10 @@ type Config = {
   yieldDistributorAddress?: string;
   priceManagerAddress?: string;
   chainName?: string;
+  /** Phase 4b: CRE on-chain write – RecommendationConsumer address for writeReport() */
+  recommendationConsumerAddress?: string;
+  /** Gas limit for writeReport transaction */
+  gasLimit?: string;
 };
 
 type MarketMetrics = {
@@ -118,47 +123,70 @@ function checkReserveHealth(runtime: Runtime<Config>, config: Config): ReserveHe
 
   const evmClient = new EVMClient(network.chainSelector.selector);
 
-  // Read distributionPool from YieldDistributor
-  const poolCallData = encodeFunctionData({
-    abi: YieldDistributorAbi,
-    functionName: "distributionPool",
-  });
-  const poolCall = evmClient
-    .callContract(runtime, {
-      call: encodeCallMsg({
-        from: zeroAddress,
-        to: ydAddr as `0x${string}`,
-        data: poolCallData,
-      }),
-      blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
-    })
-    .result();
-  const poolBalance = decodeFunctionResult({
-    abi: YieldDistributorAbi,
-    functionName: "distributionPool",
-    data: bytesToHex(poolCall.data),
-  }) as bigint;
+  let poolBalance: bigint;
+  let expectedRent: bigint;
 
-  // Read getCurrentRentalPrice from PriceManager
-  const rentCallData = encodeFunctionData({
-    abi: PriceManagerAbi,
-    functionName: "getCurrentRentalPrice",
-  });
-  const rentCall = evmClient
-    .callContract(runtime, {
-      call: encodeCallMsg({
-        from: zeroAddress,
-        to: pmAddr as `0x${string}`,
-        data: rentCallData,
-      }),
-      blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
-    })
-    .result();
-  const expectedRent = decodeFunctionResult({
-    abi: PriceManagerAbi,
-    functionName: "getCurrentRentalPrice",
-    data: bytesToHex(rentCall.data),
-  }) as bigint;
+  try {
+    // Read distributionPool from YieldDistributor
+    const poolCallData = encodeFunctionData({
+      abi: YieldDistributorAbi,
+      functionName: "distributionPool",
+    });
+    const poolCall = evmClient
+      .callContract(runtime, {
+        call: encodeCallMsg({
+          from: zeroAddress,
+          to: ydAddr as `0x${string}`,
+          data: poolCallData,
+        }),
+        blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+      })
+      .result();
+    const poolHex = bytesToHex(poolCall.data);
+    if (!poolHex || poolHex === "0x" || poolHex.length < 4) {
+      runtime.log("Reserve health: YieldDistributor not deployed at this address, skipping");
+      return null;
+    }
+    poolBalance = decodeFunctionResult({
+      abi: YieldDistributorAbi,
+      functionName: "distributionPool",
+      data: poolHex,
+    }) as bigint;
+  } catch (err) {
+    runtime.log(`Reserve health: failed to read YieldDistributor (${(err as Error).message}), skipping`);
+    return null;
+  }
+
+  try {
+    // Read getCurrentRentalPrice from PriceManager
+    const rentCallData = encodeFunctionData({
+      abi: PriceManagerAbi,
+      functionName: "getCurrentRentalPrice",
+    });
+    const rentCall = evmClient
+      .callContract(runtime, {
+        call: encodeCallMsg({
+          from: zeroAddress,
+          to: pmAddr as `0x${string}`,
+          data: rentCallData,
+        }),
+        blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+      })
+      .result();
+    const rentHex = bytesToHex(rentCall.data);
+    if (!rentHex || rentHex === "0x" || rentHex.length < 4) {
+      runtime.log("Reserve health: PriceManager not deployed at this address, skipping");
+      return null;
+    }
+    expectedRent = decodeFunctionResult({
+      abi: PriceManagerAbi,
+      functionName: "getCurrentRentalPrice",
+      data: rentHex,
+    }) as bigint;
+  } catch (err) {
+    runtime.log(`Reserve health: failed to read PriceManager (${(err as Error).message}), skipping`);
+    return null;
+  }
 
   const poolUsd = Number(poolBalance) / 1e6;
   const rentUsd = Number(expectedRent) / 1e6;
@@ -322,6 +350,76 @@ Return ONLY valid JSON.`;
     confidence: Math.min(100, Math.max(0, Math.round(parsed.confidence))),
     reasoning: String(parsed.reasoning ?? "").slice(0, 512) || "AI analysis.",
   };
+}
+
+/** Phase 4b: Submit recommendation on-chain via CRE writeReport → RecommendationConsumer → PriceManager */
+function submitRecommendationOnchain(
+  runtime: Runtime<Config>,
+  config: Config,
+  recommendation: PriceRecommendation
+): string | null {
+  const consumerAddr = config.recommendationConsumerAddress;
+  if (!consumerAddr) return null;
+
+  const chainName = config.chainName ?? "ethereum-testnet-sepolia";
+  const network = getNetwork({
+    chainFamily: "evm",
+    chainSelectorName: chainName,
+    isTestnet: true,
+  });
+  if (!network) {
+    runtime.log(`On-chain write: unknown chain ${chainName}, skipping`);
+    return null;
+  }
+
+  try {
+    runtime.log(`Submitting recommendation on-chain to consumer: ${consumerAddr}`);
+
+    const evmClient = new EVMClient(network.chainSelector.selector);
+
+    // Price in USDC 6-decimal format (e.g. $30 → 30_000_000)
+    const priceUsdc = BigInt(recommendation.recommendedPrice) * 1_000_000n;
+    const confidence = BigInt(recommendation.confidenceScore);
+    const reasoning = recommendation.reasoning;
+
+    // Encode the recommendation as ABI parameters matching the consumer's abi.decode
+    const reportData = encodeAbiParameters(
+      parseAbiParameters("uint256 price, uint256 confidence, string reasoning"),
+      [priceUsdc, confidence, reasoning]
+    );
+
+    runtime.log(
+      `Writing report: price=$${recommendation.recommendedPrice} (${priceUsdc} raw), confidence=${confidence}%`
+    );
+
+    // Step 1: Generate a signed report using CRE consensus
+    const reportResponse = runtime
+      .report({
+        encodedPayload: hexToBase64(reportData),
+        encoderName: "evm",
+        signingAlgo: "ecdsa",
+        hashingAlgo: "keccak256",
+      })
+      .result();
+
+    // Step 2: Submit the report to the consumer contract via KeystoneForwarder
+    const writeResult = evmClient
+      .writeReport(runtime, {
+        receiver: consumerAddr,
+        report: reportResponse,
+        gasConfig: {
+          gasLimit: config.gasLimit ?? "500000",
+        },
+      })
+      .result();
+
+    const txHash = bytesToHex(writeResult.txHash || new Uint8Array(32));
+    runtime.log(`On-chain write succeeded: ${txHash}`);
+    return txHash;
+  } catch (err) {
+    runtime.log(`On-chain write failed: ${(err as Error).message}`);
+    return null;
+  }
 }
 
 function getMockRecommendation(config: Config): PriceRecommendation {
@@ -601,6 +699,9 @@ const onCronTrigger = (runtime: Runtime<Config>): string => {
   // Phase 4: Check reserve health when contract addresses are configured
   const reserveHealth = checkReserveHealth(runtime, config);
 
+  // Phase 4b: Submit recommendation on-chain via CRE writeReport
+  const txHash = submitRecommendationOnchain(runtime, config, recommendation);
+
   const output: Record<string, unknown> = {
     recommendedPrice: recommendation.recommendedPrice,
     confidenceScore: recommendation.confidenceScore,
@@ -610,6 +711,9 @@ const onCronTrigger = (runtime: Runtime<Config>): string => {
   };
   if (reserveHealth) {
     output.reserveHealth = reserveHealth;
+  }
+  if (txHash) {
+    output.txHash = txHash;
   }
   return JSON.stringify(output);
 };
