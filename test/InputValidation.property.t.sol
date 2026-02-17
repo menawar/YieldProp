@@ -277,7 +277,7 @@ contract InputValidationPropertyTest is Test {
         
         // Test minimum valid price (1)
         vm.prank(propertyManager);
-        priceManager.submitRecommendation(1, 50, "Minimum price");
+        priceManager.submitRecommendation(1000e6, 50, "Minimum price");
         
         // Verify all succeeded
         assertEq(priceManager.recommendationCount(), 3);

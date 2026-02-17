@@ -176,57 +176,6 @@ npm test
 npm run deploy
 ```
 
-## Tenderly Virtual TestNet Setup
-
-### Option A: Create VNet via API (recommended)
-
-```bash
-# Set your Tenderly access key
-# Get it at: https://dashboard.tenderly.co → Settings → API Access Tokens
-TENDERLY_ACCESS_KEY=<key> node scripts/create-tenderly-vnet.js
-```
-
-This automatically creates a Sepolia-forked VNet with public explorer enabled, and updates `.env` + `cre-workflow/project.yaml`.
-
-### Option B: Create VNet via Dashboard
-
-1. Go to [Tenderly Dashboard](https://dashboard.tenderly.co) → **Virtual TestNets** → **Create**
-2. Fork **Sepolia** (chainId 11155111), enable **Public Explorer** and **State Sync**
-3. Copy the **Admin RPC URL**
-4. Set in `.env`:
-   ```
-   TENDERLY_VIRTUAL_TESTNET_RPC=https://virtual.sepolia.rpc.tenderly.co/...
-   TENDERLY_CHAIN_ID=11155111
-   ```
-
-### Deploy + Simulate (one command)
-
-```bash
-npm run tenderly:full
-```
-
-This runs the complete flow:
-1. `setup:tenderly` — updates CRE project.yaml with your Tenderly RPC
-2. `deploy:tenderly` — deploys all 5 contracts, auto-updates CRE config addresses
-3. `verify:tenderly` — verifies all contracts are deployed and CRE config is aligned
-4. `cre:simulate:tenderly` — runs the full CRE workflow against Tenderly
-
-### Or step by step:
-
-```bash
-npm run setup:tenderly          # Configure CRE with Tenderly RPC
-npm run deploy:tenderly         # Deploy contracts to Tenderly VNet
-npm run verify:tenderly         # Verify deployment
-npm run cre:simulate:tenderly   # Run CRE workflow simulation
-```
-
-### Virtual TestNet Explorer
-
-After deploying, view your contracts and transactions:
-- Open your VNet in the [Tenderly Dashboard](https://dashboard.tenderly.co)
-- Click the **Explorer** tab to see deployed contracts and transaction history
-- Enable **Public Explorer** (globe icon) for a shareable URL
-
 ## CRE Workflow Details
 
 The CRE workflow (`cre-workflow/yieldprop-workflow/main.ts`) orchestrates:
@@ -250,12 +199,13 @@ The CRE workflow (`cre-workflow/yieldprop-workflow/main.ts`) orchestrates:
 
 ### Four CRE Targets
 
+### CRE Targets
+
 | Target | Command | Description |
 |--------|---------|-------------|
-| `staging-settings` | `npm run cre:simulate` | Public Sepolia RPC, mock mode |
+| `staging-settings` | `cre workflow simulate` | Public Sepolia RPC, mock mode |
 | `production-settings` | — | Public Sepolia RPC, real APIs |
-| `confidential-settings` | `npm run cre:simulate:confidential` | Confidential HTTP mode |
-| `tenderly-settings` | `npm run cre:simulate:tenderly` | Tenderly Virtual TestNet |
+
 
 ## Dashboard
 
@@ -270,17 +220,14 @@ See [`dashboard/`](dashboard/) and [`DASHBOARD_SETUP.md`](DASHBOARD_SETUP.md) fo
 
 | Script | Description |
 |--------|-------------|
-| `npm test` | Run Hardhat tests |
+| `npm run test` | Run Hardhat tests |
 | `npm run compile` | Compile Solidity contracts |
 | `npm run deploy` | Deploy to Sepolia |
-| `npm run deploy:tenderly` | Deploy to Tenderly Virtual TestNet |
-| `npm run tenderly:full` | Full Tenderly flow (setup → deploy → verify → simulate) |
-| `npm run create:tenderly-vnet` | Create new Virtual TestNet via API |
-| `npm run verify:tenderly` | Verify Tenderly deployment |
-| `npm run cre:setup` | Install CRE workflow dependencies |
-| `npm run cre:simulate` | Run CRE simulation (staging) |
-| `npm run cre:simulate:tenderly` | Run CRE simulation (Tenderly) |
-| `npm run cre:simulate:confidential` | Run CRE simulation (Confidential HTTP) |
+| `npm run deploy:local` | Deploy to local Hardhat network |
+| `npm run mint:usdc` | Mint mock USDC to test accounts |
+| `npm run sync:addresses` | Update dashboard with deployed addresses |
+| `npm run verify` | Verify contracts on Etherscan |
+
 
 ## Troubleshooting
 

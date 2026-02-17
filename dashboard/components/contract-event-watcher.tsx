@@ -173,7 +173,7 @@ export function ContractEventWatcher() {
     onLogs: (logs) => {
       invalidateAll()
       for (const log of logs) {
-        const { to } = log.args as { from?: `0x${string}`; to?: `0x${string}`; value?: bigint }
+        const { to } = (log as any).args as { from?: `0x${string}`; to?: `0x${string}`; value?: bigint }
         if (to && to !== zeroAddress) tryRegisterHolder(to)
       }
     },

@@ -23,26 +23,29 @@ export function HolderRegistration() {
   const [newHolder, setNewHolder] = useState('')
   const [batchInput, setBatchInput] = useState('')
 
-  const { data: tokenBalance } = useReadContract({
+  const { data: tokenBalanceRaw } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   })
+  const tokenBalance = tokenBalanceRaw as unknown as bigint | undefined
 
-  const { data: isRegistered } = useReadContract({
+  const { data: isRegisteredRaw } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'isRegisteredHolder',
     args: address ? [address] : undefined,
   })
+  const isRegistered = isRegisteredRaw as unknown as boolean | undefined
 
-  const { data: isNewHolderRegistered } = useReadContract({
+  const { data: isNewHolderRegisteredRaw } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'isRegisteredHolder',
     args: newHolder && isAddress(newHolder) ? [newHolder as `0x${string}`] : undefined,
   })
+  const isNewHolderRegistered = isNewHolderRegisteredRaw as unknown as boolean | undefined
 
   const { writeContract: registerSelf, data: selfHash, isPending: isSelfPending } = useWriteContract()
   const { isLoading: isSelfTx, isSuccess: isSelfSuccess } = useWaitForTransactionReceipt({ hash: selfHash })
@@ -53,18 +56,20 @@ export function HolderRegistration() {
     functionName: 'PROPERTY_MANAGER_ROLE',
   })
 
-  const { data: isManager } = useReadContract({
+  const { data: isManagerRaw } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'hasRole',
     args: address && managerRole ? [managerRole, address] : undefined,
   })
+  const isManager = isManagerRaw as unknown as boolean | undefined
 
-  const { data: registeredHolders } = useReadContract({
+  const { data: registeredHoldersRaw } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'getRegisteredHolders',
   })
+  const registeredHolders = registeredHoldersRaw as unknown as string[] | undefined
 
   const { writeContract: registerHolder, data: singleHash, isPending: isSinglePending } = useWriteContract()
   const { writeContract: registerHolders, data: batchHash, isPending: isBatchPending } = useWriteContract()

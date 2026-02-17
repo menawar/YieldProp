@@ -19,7 +19,7 @@ export function TokenSupplyCard() {
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'totalSupply',
-  })
+  }) as { data: bigint | undefined, isLoading: boolean, isError: boolean }
 
   const tokenCount =
     totalSupply !== undefined ? Number(totalSupply) / 10 ** TOKEN_DECIMALS : null

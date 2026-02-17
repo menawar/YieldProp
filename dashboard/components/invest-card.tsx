@@ -30,30 +30,34 @@ export function InvestCard() {
 
   useEffect(() => setMounted(true), [])
 
-  const { data: saleActive } = useReadContract({
+  const { data: saleActiveRaw } = useReadContract({
     address: contracts.PropertySale,
     abi: ABIS.PropertySale,
     functionName: 'saleActive',
   })
+  const saleActive = saleActiveRaw as unknown as boolean | undefined
 
-  const { data: tokensOfferedForSale } = useReadContract({
+  const { data: tokensOfferedForSaleRaw } = useReadContract({
     address: contracts.PropertySale,
     abi: ABIS.PropertySale,
     functionName: 'tokensOfferedForSale',
   })
+  const tokensOfferedForSale = tokensOfferedForSaleRaw as unknown as bigint | undefined
 
-  const { data: pricePerToken } = useReadContract({
+  const { data: pricePerTokenRaw } = useReadContract({
     address: contracts.PropertySale,
     abi: ABIS.PropertySale,
     functionName: 'pricePerToken',
   })
+  const pricePerToken = pricePerTokenRaw as unknown as bigint | undefined
 
-  const { data: isWhitelisted } = useReadContract({
+  const { data: isWhitelistedRaw } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'isWhitelisted',
     args: address ? [address] : undefined,
   })
+  const isWhitelisted = isWhitelistedRaw as unknown as boolean | undefined
 
   const tokenAmountWei = tokenAmount
     ? BigInt(Math.floor(parseFloat(tokenAmount) * 10 ** TOKEN_DECIMALS))
@@ -61,23 +65,25 @@ export function InvestCard() {
 
   // pricePerToken from PropertySale is in USDC (6 decimals). Cost = (tokenAmount * pricePerToken) / 1e18.
   const displayCostUsdc =
-    tokenAmountWei > 0n && pricePerToken !== undefined && pricePerToken > 0n
+    tokenAmountWei > 0n && pricePerToken !== undefined && pricePerToken !== null && pricePerToken > 0n
       ? (tokenAmountWei * pricePerToken) / 10n ** 18n
       : 0n
 
-  const { data: usdcBalance } = useReadContract({
+  const { data: usdcBalanceRaw } = useReadContract({
     address: contracts.MockUSDC,
     abi: ABIS.ERC20,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   })
+  const usdcBalance = usdcBalanceRaw as unknown as bigint | undefined
 
-  const { data: allowance } = useReadContract({
+  const { data: allowanceRaw } = useReadContract({
     address: contracts.MockUSDC,
     abi: ABIS.ERC20,
     functionName: 'allowance',
     args: address ? [address, contracts.PropertySale] : undefined,
   })
+  const allowance = allowanceRaw as unknown as bigint | undefined
 
   const needsApproval =
     displayCostUsdc > 0n && allowance !== undefined && allowance < displayCostUsdc
@@ -249,7 +255,7 @@ export function InvestCard() {
                 Available for sale: {offeredNum.toFixed(2)} tokens
               </p>
             )}
-            {pricePerToken !== undefined && pricePerToken > 0n && (
+            {pricePerToken !== undefined && pricePerToken !== null && pricePerToken > 0n && (
               <p className="text-xs text-muted-foreground">
                 Price per token: {formatUsdc(pricePerToken)} USDC
               </p>

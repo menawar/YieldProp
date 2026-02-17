@@ -8,7 +8,7 @@
 
 import { expect } from 'chai';
 import fc from 'fast-check';
-import { MockMarketDataOracle } from '../services/marketDataOracle';
+import { MockMarketDataOracle } from '../services/__mocks__/marketDataOracle';
 import { MarketData } from '../services/types';
 
 describe('Property 4: Market Data Structure Completeness', () => {
@@ -37,7 +37,7 @@ describe('Property 4: Market Data Structure Completeness', () => {
         fc.integer({ min: 1, max: 10 }),
         async (addressParts, propertyType, radius) => {
           const propertyAddress = `${addressParts.street} ${addressParts.streetName}, ${addressParts.city}, ${addressParts.state} ${addressParts.zipCode}`;
-          
+
           // Fetch market data
           const data: MarketData = await oracle.fetchMarketData(
             propertyAddress,
@@ -59,7 +59,7 @@ describe('Property 4: Market Data Structure Completeness', () => {
           // Verify comparableProperties structure
           expect(data).to.have.property('comparableProperties');
           expect(data.comparableProperties).to.be.an('array');
-          
+
           for (const comp of data.comparableProperties) {
             expect(comp).to.have.property('address');
             expect(comp).to.have.property('monthlyRent');
@@ -67,7 +67,7 @@ describe('Property 4: Market Data Structure Completeness', () => {
             expect(comp).to.have.property('bathrooms');
             expect(comp).to.have.property('squareFeet');
             expect(comp).to.have.property('distanceMiles');
-            
+
             expect(comp.address).to.be.a('string').and.not.be.empty;
             expect(comp.monthlyRent).to.be.a('number').and.be.greaterThan(0);
             expect(comp.bedrooms).to.be.a('number').and.be.greaterThanOrEqual(0);
@@ -82,7 +82,7 @@ describe('Property 4: Market Data Structure Completeness', () => {
           expect(data.marketMetrics).to.have.property('medianRent');
           expect(data.marketMetrics).to.have.property('occupancyRate');
           expect(data.marketMetrics).to.have.property('rentGrowthYoY');
-          
+
           expect(data.marketMetrics.averageRent).to.be.a('number').and.be.greaterThan(0);
           expect(data.marketMetrics.medianRent).to.be.a('number').and.be.greaterThan(0);
           expect(data.marketMetrics.occupancyRate).to.be.a('number')
@@ -93,7 +93,7 @@ describe('Property 4: Market Data Structure Completeness', () => {
           // Verify timestamp
           expect(data).to.have.property('timestamp');
           expect(data.timestamp).to.be.a('number').and.be.greaterThan(0);
-          
+
           // Verify timestamp is recent (within last minute)
           const now = Date.now();
           expect(data.timestamp).to.be.lessThanOrEqual(now);
@@ -122,11 +122,11 @@ describe('Property 4: Market Data Structure Completeness', () => {
           if (data.comparableProperties.length > 0) {
             const rents = data.comparableProperties.map(p => p.monthlyRent);
             const calculatedAverage = rents.reduce((sum, r) => sum + r, 0) / rents.length;
-            
+
             // Average rent should be reasonable relative to comparable properties
             const minRent = Math.min(...rents);
             const maxRent = Math.max(...rents);
-            
+
             expect(data.marketMetrics.averageRent).to.be.greaterThanOrEqual(minRent);
             expect(data.marketMetrics.averageRent).to.be.lessThanOrEqual(maxRent);
             expect(data.marketMetrics.medianRent).to.be.greaterThanOrEqual(minRent);

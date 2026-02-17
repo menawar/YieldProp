@@ -15,10 +15,11 @@ node_modules
 /cache_forge/
 /out/
 gasReporterOutput.json
+*.tgz
 
 # solidity-coverage files
 /coverage
-/coverage.json
+coverage.json
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
@@ -28,6 +29,7 @@ ignition/deployments/chain-31337
 
 # CRE workflow env (contains API keys, private key)
 cre-workflow/.env
+cre-workflow/**/tmp.*
 
 # IDE
 .vscode/

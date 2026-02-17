@@ -17,7 +17,7 @@ export function PropertyCard() {
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'getPropertyDetails',
-  })
+  }) as { data: [string, string, bigint] | undefined, isLoading: boolean, isError: boolean }
 
   if (isError) {
     return (

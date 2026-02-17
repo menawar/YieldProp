@@ -18,26 +18,29 @@ export function PortfolioCard() {
   const { address, isConnected } = useAccount()
   const contracts = usePropertyContracts()
 
-  const { data: balance, isLoading: l1 } = useReadContract({
+  const { data: balanceRaw, isLoading: l1 } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   })
+  const balance = balanceRaw as unknown as bigint | undefined
 
-  const { data: ownershipPct, isLoading: l2 } = useReadContract({
+  const { data: ownershipPctRaw, isLoading: l2 } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'getOwnershipPercentage',
     args: address ? [address] : undefined,
   })
+  const ownershipPct = ownershipPctRaw as unknown as bigint | undefined
 
-  const { data: holderYields, isLoading: l3 } = useReadContract({
+  const { data: holderYieldsRaw, isLoading: l3 } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'getHolderYields',
     args: address ? [address] : undefined,
   })
+  const holderYields = holderYieldsRaw as unknown as bigint | undefined
 
   const isLoading = l1 || l2 || l3
 

@@ -36,7 +36,7 @@ contract PriceManagerPropertyTest is Test {
         string memory reasoning
     ) public {
         // Bound inputs to valid ranges
-        price = bound(price, 1, type(uint128).max); // Non-zero, reasonable price
+        price = bound(price, 1000e6, 3000e6); // Within 50% of 2000e6
         confidence = bound(confidence, 0, 100); // Valid confidence range
         
         // Ensure reasoning is not empty and within contract limit
@@ -71,8 +71,10 @@ contract PriceManagerPropertyTest is Test {
         uint256 confidence2
     ) public {
         // Bound inputs
-        price1 = bound(price1, 1, type(uint64).max);
-        price2 = bound(price2, 1, type(uint64).max);
+        // Price must be within 50% of initial price (2000 USDC)
+        // Range: 1000e6 - 3000e6
+        price1 = bound(price1, 1000e6, 3000e6);
+        price2 = bound(price2, 1000e6, 3000e6);
         confidence1 = bound(confidence1, 0, 100);
         confidence2 = bound(confidence2, 0, 100);
         
@@ -116,7 +118,7 @@ contract PriceManagerPropertyTest is Test {
         uint256 confidence
     ) public {
         // Bound inputs to valid ranges
-        recommendedPrice = bound(recommendedPrice, 1, type(uint128).max);
+        recommendedPrice = bound(recommendedPrice, 1000e6, 3000e6);
         confidence = bound(confidence, 0, 100);
         
         string memory reasoning = "Market analysis shows price adjustment needed";
@@ -160,9 +162,17 @@ contract PriceManagerPropertyTest is Test {
         uint256 price3
     ) public {
         // Bound inputs
-        price1 = bound(price1, 1, type(uint64).max);
-        price2 = bound(price2, 1, type(uint64).max);
-        price3 = bound(price3, 1, type(uint64).max);
+        // Price must be within 50% of initial price (2000 USDC)
+        // Range: 1000e6 - 3000e6
+        price1 = bound(price1, 1000e6, 3000e6);
+        // price2: +/- 50% of price1
+        uint256 lower2 = price1 * 5000 / 10000;
+        uint256 upper2 = price1 * 15000 / 10000;
+        price2 = bound(price2, lower2, upper2);
+        // price3: +/- 50% of price2
+        uint256 lower3 = price2 * 5000 / 10000;
+        uint256 upper3 = price2 * 15000 / 10000;
+        price3 = bound(price3, lower3, upper3);
         
         string memory reasoning = "Price adjustment";
         
@@ -195,7 +205,7 @@ contract PriceManagerPropertyTest is Test {
         uint256 confidence
     ) public {
         // Bound inputs
-        recommendedPrice = bound(recommendedPrice, 1, type(uint128).max);
+        recommendedPrice = bound(recommendedPrice, 1000e6, 3000e6);
         confidence = bound(confidence, 0, 100);
         
         string memory reasoning = "Market analysis";
@@ -234,7 +244,7 @@ contract PriceManagerPropertyTest is Test {
         
         // Submit multiple recommendations
         for (uint256 i = 0; i < numRecommendations; i++) {
-            uint256 price = 2000e6 + (i * 100e6); // Increment price each time
+            uint256 price = 2000e6 + (i * 10e6); // Increment slightly, stay within bounds
             vm.prank(propertyManager);
             priceManager.submitRecommendation(price, 85, reasoning);
         }
@@ -254,7 +264,7 @@ contract PriceManagerPropertyTest is Test {
             assertEq(history[i].id, i + 1, "Recommendation ID should be sequential");
             assertEq(
                 history[i].recommendedPrice,
-                2000e6 + (i * 100e6),
+                2000e6 + (i * 10e6),
                 "Price should match submitted value"
             );
         }
@@ -267,7 +277,7 @@ contract PriceManagerPropertyTest is Test {
         uint256 confidence
     ) public {
         // Bound inputs
-        price = bound(price, 1, type(uint128).max);
+        price = bound(price, 1000e6, 3000e6);
         confidence = bound(confidence, 0, 100);
         
         string memory reasoning = "Consistency test";
@@ -302,9 +312,11 @@ contract PriceManagerPropertyTest is Test {
         uint256 price3
     ) public {
         // Bound inputs
-        price1 = bound(price1, 1, type(uint64).max);
-        price2 = bound(price2, 1, type(uint64).max);
-        price3 = bound(price3, 1, type(uint64).max);
+        // Price must be within 50% of initial price (2000 USDC)
+        // Range: 1000e6 - 3000e6
+        price1 = bound(price1, 1000e6, 3000e6);
+        price2 = bound(price2, 1000e6, 3000e6);
+        price3 = bound(price3, 1000e6, 3000e6);
         
         string memory reasoning = "Test";
         
@@ -344,7 +356,7 @@ contract PriceManagerPropertyTest is Test {
         // Submit recommendations
         for (uint256 i = 0; i < numPending + 2; i++) {
             vm.prank(propertyManager);
-            priceManager.submitRecommendation(2000e6 + (i * 100e6), 85, reasoning);
+            priceManager.submitRecommendation(2000e6 + (i * 10e6), 85, reasoning);
         }
         
         // Accept first, reject second, leave rest pending

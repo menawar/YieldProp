@@ -1,0 +1,36 @@
+{
+  "network": "sepolia",
+  "timestamp": "2026-02-17T14:56:26.267Z",
+  "deployer": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+  "MockUSDC": "0xe9cFBc092474b3676CAac867Cc35d5A9ADF46852",
+  "roles": {
+    "propertyManager": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+    "paymentProcessor": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1"
+  },
+  "contracts": {
+    "PropertyToken": "0x25B1c66a6DE7Cdb95367BC7f956A03f447F34387",
+    "PriceManager": "0x13263E52B9842036502726F4dC0A857eDCB3D255",
+    "YieldDistributor": "0x8Aa69C9E41dE6c95713A95bF0f6228259e40b971",
+    "PropertySale": "0x7606125237AEBf235dbC7176025E2DFF5458fd84",
+    "MockUSDC": "0xe9cFBc092474b3676CAac867Cc35d5A9ADF46852"
+  },
+  "configuration": {
+    "propertyAddress": "123 Main St, City, State",
+    "propertyType": "Single Family",
+    "propertyValuation": "5000000000000000000000",
+    "initialRentalPrice": "200000000"
+  },
+  "properties": [
+    {
+      "id": "default",
+      "name": "Default Property",
+      "address": "123 Main St, City, State",
+      "contracts": {
+        "PropertyToken": "0x25B1c66a6DE7Cdb95367BC7f956A03f447F34387",
+        "PriceManager": "0x13263E52B9842036502726F4dC0A857eDCB3D255",
+        "YieldDistributor": "0x8Aa69C9E41dE6c95713A95bF0f6228259e40b971",
+        "PropertySale": "0x7606125237AEBf235dbC7176025E2DFF5458fd84"
+      }
+    }
+  ]
+}

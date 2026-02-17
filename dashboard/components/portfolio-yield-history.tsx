@@ -32,18 +32,20 @@ export function PortfolioYieldHistory() {
     functionName: 'getDistributionHistory',
   })
 
-  const { data: totalSupply } = useReadContract({
+  const { data: totalSupplyRaw } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'totalSupply',
   })
+  const totalSupply = totalSupplyRaw as unknown as bigint | undefined
 
-  const { data: currentBalance } = useReadContract({
+  const { data: currentBalanceRaw } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   })
+  const currentBalance = currentBalanceRaw as unknown as bigint | undefined
 
   if (!isConnected || !address) {
     return (

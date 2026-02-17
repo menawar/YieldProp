@@ -4,7 +4,8 @@
  */
 
 import { expect } from 'chai';
-import { MockAIPricingAgent, AIPricingAgent } from '../services/aiPricingAgent';
+import { AIPricingAgent } from '../services/aiPricingAgent';
+import { MockAIPricingAgent } from '../services/__mocks__/aiPricingAgent';
 import { MarketData, PropertyDetails, PricingAnalysisRequest } from '../services/types';
 
 describe('AIPricingAgent Unit Tests', () => {
@@ -345,7 +346,7 @@ describe('AIPricingAgent Unit Tests', () => {
       });
 
       // Should not jump too high from current price
-      const maxIncrease = propertyDetails.currentPrice * 1.2; // 20% max increase
+      const maxIncrease = propertyDetails.currentPrice! * 1.2; // 20% max increase
       expect(recommendation.price).to.be.lessThanOrEqual(maxIncrease);
     });
 

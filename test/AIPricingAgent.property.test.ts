@@ -8,7 +8,7 @@
 
 import { expect } from 'chai';
 import fc from 'fast-check';
-import { MockAIPricingAgent } from '../services/aiPricingAgent';
+import { MockAIPricingAgent } from '../services/__mocks__/aiPricingAgent';
 import { MarketData, PropertyDetails, PricingAnalysisRequest } from '../services/types';
 
 describe('Property 5: AI Recommendation Output Validation', () => {

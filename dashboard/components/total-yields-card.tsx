@@ -17,7 +17,7 @@ export function TotalYieldsCard() {
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'getTotalYieldsDistributed',
-  })
+  }) as { data: bigint | undefined, isLoading: boolean, isError: boolean }
 
   if (isError) {
     return (

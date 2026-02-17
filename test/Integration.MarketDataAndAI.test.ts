@@ -4,7 +4,8 @@
  */
 
 import { expect } from 'chai';
-import { MockMarketDataOracle, MockAIPricingAgent } from '../services';
+import { MockMarketDataOracle } from '../services/__mocks__/marketDataOracle';
+import { MockAIPricingAgent } from '../services/__mocks__/aiPricingAgent';
 
 describe('Market Data + AI Pricing Integration', () => {
   let oracle: MockMarketDataOracle;
@@ -22,7 +23,7 @@ describe('Market Data + AI Pricing Integration', () => {
     // Step 1: Fetch market data
     const propertyAddress = '123 Main St, San Francisco, CA 94102';
     const propertyType = 'Single Family';
-    
+
     const marketData = await oracle.fetchMarketData(propertyAddress, propertyType);
 
     // Verify market data
@@ -172,10 +173,10 @@ describe('Market Data + AI Pricing Integration', () => {
 
     for (const propertyType of propertyTypes) {
       const address = `${baseAddress}, San Francisco, CA 94102`;
-      
+
       // Fetch market data
       const marketData = await oracle.fetchMarketData(address, propertyType);
-      
+
       // Get AI recommendation
       const recommendation = await agent.analyzePricing({
         marketData,

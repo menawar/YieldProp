@@ -22,38 +22,43 @@ export function RentalPaymentForm() {
   const [useCurrentPrice, setUseCurrentPrice] = useState(true)
   const [customAmount, setCustomAmount] = useState('')
 
-  const { data: managerRole } = useReadContract({
+  const { data: managerRoleRaw } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'PAYMENT_PROCESSOR_ROLE',
   })
+  const managerRole = managerRoleRaw as unknown as `0x${string}` | undefined
 
-  const { data: isPaymentProcessor } = useReadContract({
+  const { data: isPaymentProcessorRaw } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'hasRole',
     args: address && managerRole ? [managerRole, address] : undefined,
   })
+  const isPaymentProcessor = isPaymentProcessorRaw as unknown as boolean | undefined
 
-  const { data: currentPrice } = useReadContract({
+  const { data: currentPriceRaw } = useReadContract({
     address: contracts.PriceManager,
     abi: ABIS.PriceManager,
     functionName: 'getCurrentRentalPrice',
   })
+  const currentPrice = currentPriceRaw as unknown as bigint | undefined
 
-  const { data: usdcBalance } = useReadContract({
+  const { data: usdcBalanceRaw } = useReadContract({
     address: contracts.MockUSDC,
     abi: ABIS.ERC20,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   })
+  const usdcBalance = usdcBalanceRaw as unknown as bigint | undefined
 
-  const { data: allowance } = useReadContract({
+  const { data: allowanceRaw } = useReadContract({
     address: contracts.MockUSDC,
     abi: ABIS.ERC20,
     functionName: 'allowance',
     args: address ? [address, contracts.YieldDistributor] : undefined,
   })
+  const allowance = allowanceRaw as unknown as bigint | undefined
 
   const { writeContract: approve, data: approveHash, isPending: isApproving } = useWriteContract()
   const { writeContract: receivePayment, data: paymentHash, isPending: isSubmitting } = useWriteContract()

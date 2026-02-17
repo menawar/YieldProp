@@ -30,7 +30,7 @@ export function TokenTransferCard() {
     abi: ABIS.PropertyToken,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-  })
+  }) as { data: bigint | undefined, isLoading: boolean, isError: boolean }
 
   const recipientValidForQuery = recipient && isAddress(recipient)
   const { data: isRecipientWhitelisted } = useReadContract({

@@ -17,19 +17,19 @@ export function YieldMetrics() {
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'getTotalYieldsDistributed',
-  })
+  }) as { data: bigint | undefined, isLoading: boolean }
 
   const { data: annualizedYield, isLoading: l2 } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'getAnnualizedYield',
-  })
+  }) as { data: bigint | undefined, isLoading: boolean }
 
   const { data: poolBalance, isLoading: l3 } = useReadContract({
     address: contracts.YieldDistributor,
     abi: ABIS.YieldDistributor,
     functionName: 'getDistributionPool',
-  })
+  }) as { data: bigint | undefined, isLoading: boolean }
 
   const isLoading = l1 || l2 || l3
 

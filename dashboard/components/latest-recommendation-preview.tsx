@@ -13,13 +13,22 @@ import { Sparkles, ArrowRight } from 'lucide-react'
  * Task 14.1: Compact latest recommendation preview for Overview
  * Requirements: 9.1, 9.2
  */
+type Recommendation = {
+  id: bigint
+  recommendedPrice: bigint
+  confidenceScore: bigint
+  accepted: boolean
+  rejected: boolean
+}
+
 export function LatestRecommendationPreview() {
   const contracts = usePropertyContracts()
-  const { data: recommendation, isLoading, isError } = useReadContract({
+  const { data: recommendationRaw, isLoading, isError } = useReadContract({
     address: contracts.PriceManager,
     abi: ABIS.PriceManager,
     functionName: 'getLatestRecommendation',
   })
+  const recommendation = recommendationRaw as unknown as Recommendation | undefined
 
   const hasRecommendation = recommendation && recommendation.id > 0n
   const isPending = hasRecommendation && !recommendation.accepted && !recommendation.rejected

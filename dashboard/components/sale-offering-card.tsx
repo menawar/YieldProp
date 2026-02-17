@@ -24,34 +24,39 @@ export function SaleOfferingCard() {
   const contracts = usePropertyContracts()
   const [amount, setAmount] = useState('')
 
-  const { data: ptManagerRole } = useReadContract({
+  const { data: ptManagerRoleRaw } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'PROPERTY_MANAGER_ROLE',
   })
-  const { data: isManager } = useReadContract({
+  const ptManagerRole = ptManagerRoleRaw as unknown as `0x${string}` | undefined
+  const { data: isManagerRaw } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'hasRole',
     args: address && ptManagerRole ? [ptManagerRole, address] : undefined,
   })
+  const isManager = isManagerRaw as unknown as boolean | undefined
 
-  const { data: tokensOfferedForSale } = useReadContract({
+  const { data: tokensOfferedForSaleRaw } = useReadContract({
     address: contracts.PropertySale,
     abi: ABIS.PropertySale,
     functionName: 'tokensOfferedForSale',
   })
-  const { data: tokenHolder } = useReadContract({
+  const tokensOfferedForSale = tokensOfferedForSaleRaw as unknown as bigint | undefined
+  const { data: tokenHolderRaw } = useReadContract({
     address: contracts.PropertySale,
     abi: ABIS.PropertySale,
     functionName: 'tokenHolder',
   })
-  const { data: holderBalance } = useReadContract({
+  const tokenHolder = tokenHolderRaw as unknown as `0x${string}` | undefined
+  const { data: holderBalanceRaw } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'balanceOf',
     args: tokenHolder ? [tokenHolder] : undefined,
   })
+  const holderBalance = holderBalanceRaw as unknown as bigint | undefined
 
   const { writeContract, data: txHash, isPending } = useWriteContract()
   const { isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash: txHash })

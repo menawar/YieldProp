@@ -50,7 +50,7 @@ export function DistributionSchedule() {
 
   useInvalidateOnTxConfirm(hash, isTxSuccess)
 
-  const canDistribute = poolBalance && poolBalance > 0n && isManager
+  const canDistribute = !!poolBalance && (poolBalance as unknown as bigint) > 0n && !!isManager
   const isBusy = isPending || isTxPending
 
   const handleDistribute = () => {
@@ -87,7 +87,7 @@ export function DistributionSchedule() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Pool balance</p>
-            <p className="text-xl font-semibold">{formatUsdc(poolBalance)}</p>
+            <p className="text-xl font-semibold">{formatUsdc(poolBalance as unknown as bigint)}</p>
           </div>
           {canDistribute && (
             <Button onClick={handleDistribute} disabled={isBusy}>
@@ -96,7 +96,7 @@ export function DistributionSchedule() {
             </Button>
           )}
         </div>
-        {poolBalance === 0n || !poolBalance ? (
+        {(poolBalance as unknown as bigint) === 0n || !poolBalance ? (
           <p className="text-sm text-muted-foreground">
             No pending funds. Rental payments will be added to the pool for distribution.
           </p>

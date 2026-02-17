@@ -27,21 +27,21 @@ export function WhitelistManager() {
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'PROPERTY_MANAGER_ROLE',
-  })
+  }) as { data: `0x${string}` | undefined }
 
   const { data: isManager } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'hasRole',
     args: address && managerRole ? [managerRole, address] : undefined,
-  })
+  }) as { data: boolean | undefined }
 
   const { data: isWhitelisted } = useReadContract({
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'isWhitelisted',
     args: removeAddress && isAddress(removeAddress) ? [removeAddress as `0x${string}`] : undefined,
-  })
+  }) as { data: boolean | undefined }
 
   const { writeContract: addToWhitelist, data: addHash, isPending: isAdding } = useWriteContract()
   const { writeContract: removeFromWhitelist, data: removeHash, isPending: isRemoving } = useWriteContract()

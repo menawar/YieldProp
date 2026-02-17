@@ -17,7 +17,7 @@ export function RentalPriceCard() {
     address: contracts.PriceManager,
     abi: ABIS.PriceManager,
     functionName: 'getCurrentRentalPrice',
-  })
+  }) as { data: bigint | undefined, isLoading: boolean, isError: boolean }
 
   if (isError) {
     return (

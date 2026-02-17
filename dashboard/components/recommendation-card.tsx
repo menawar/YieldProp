@@ -19,6 +19,15 @@ const PROPERTY_MANAGER_ROLE = '0x' + '00'.repeat(32) as `0x${string}` // Will be
  * Task 15.1: RecommendationCard - latest AI recommendation with accept/reject
  * Requirements: 9.2, 9.5
  */
+type Recommendation = {
+  id: bigint
+  recommendedPrice: bigint
+  confidenceScore: bigint
+  accepted: boolean
+  rejected: boolean
+  reasoning: string
+}
+
 export function RecommendationCard() {
   const { address } = useAccount()
   const [isGenerating, setIsGenerating] = useState(false)
@@ -41,13 +50,14 @@ export function RecommendationCard() {
     address: contracts.PropertyToken,
     abi: ABIS.PropertyToken,
     functionName: 'getPropertyDetails',
-  })
+  }) as { data: [string, string, bigint] | undefined }
 
-  const { data: recommendation, isLoading, isError, refetch: refetchRecommendation } = useReadContract({
+  const { data: recommendationRaw, isLoading, isError, refetch: refetchRecommendation } = useReadContract({
     address: contracts.PriceManager,
     abi: ABIS.PriceManager,
     functionName: 'getLatestRecommendation',
   })
+  const recommendation = recommendationRaw as unknown as Recommendation | undefined
 
   const { writeContract: submitRecommendation, data: submitHash, isPending: isSubmitting } = useWriteContract()
   const handleGenerateRecommendation = async () => {

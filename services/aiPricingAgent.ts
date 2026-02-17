@@ -21,7 +21,7 @@ const INITIAL_RETRY_DELAY_MS = 1000; // 1 second
  * and by MockAIPricingAgent for testing. Set includeFallbackNote=true only
  * when invoked as fallback (so users know AI was unavailable).
  */
-function computeRuleBasedRecommendation(
+export function computeRuleBasedRecommendation(
   request: PricingAnalysisRequest,
   includeFallbackNote = false
 ): PricingRecommendation {
@@ -309,22 +309,5 @@ IMPORTANT: Return ONLY valid JSON. Do not include any text before or after the J
    */
   setModel(model: string): void {
     this.model = model;
-  }
-}
-
-/**
- * Mock AI Pricing Agent for testing and development
- * Uses rule-based logic without calling OpenAI API (same fallback as AIPricingAgent)
- */
-export class MockAIPricingAgent extends AIPricingAgent {
-  constructor() {
-    super('mock-api-key', 'gpt-4', DEFAULT_TIMEOUT_MS);
-  }
-
-  /**
-   * Override to return rule-based recommendation without calling OpenAI
-   */
-  async analyzePricing(request: PricingAnalysisRequest): Promise<PricingRecommendation> {
-    return computeRuleBasedRecommendation(request, false); // Mock - no fallback note
   }
 }

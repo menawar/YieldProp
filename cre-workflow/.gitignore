@@ -12,3 +12,4 @@ dist/
 *.wasm
 tmp.js
 tmp/
+secrets.yaml

@@ -4,6 +4,9 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "./interfaces/IPropertyToken.sol";
+import "./interfaces/IYieldDistributor.sol";
+
 /**
  * @title PropertySale
  * @dev Allows whitelisted investors to purchase property tokens with USDC.
@@ -103,6 +106,8 @@ contract PropertySale is ReentrancyGuard {
         saleActive = _active;
     }
 
+
+
     /**
      * @notice Set how many tokens are offered for sale. Only property manager.
      * @param amount Tokens to offer (18 decimals). Cannot exceed tokenHolder balance.
@@ -116,13 +121,3 @@ contract PropertySale is ReentrancyGuard {
     }
 }
 
-interface IPropertyToken {
-    function getPropertyDetails() external view returns (string memory, string memory, uint256 valuation, uint256 totalTokens);
-    function isWhitelisted(address account) external view returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
-}
-
-interface IYieldDistributor {
-    function registerHolderFromPropertySale(address holder) external;
-}

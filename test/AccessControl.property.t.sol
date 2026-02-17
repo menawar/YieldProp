@@ -119,7 +119,8 @@ contract AccessControlPropertyTest is Test {
         vm.assume(randomCaller != address(0));
         
         // Bound price to reasonable range
-        price = bound(price, 1, 10000e6);
+        // Bound price to valid range (1000e6 - 3000e6)
+        price = bound(price, 1000e6, 3000e6);
         
         // Attempt to submit recommendation as unauthorized user
         vm.prank(randomCaller);
@@ -217,7 +218,8 @@ contract AccessControlPropertyTest is Test {
     /// For any authorized address, restricted operations should succeed
     function testProperty_AuthorizedOperationsSucceed(uint256 price) public {
         // Bound price to reasonable range
-        price = bound(price, 1, 10000e6);
+        // Bound price to valid range (1000e6 - 3000e6)
+        price = bound(price, 1000e6, 3000e6);
         
         // PropertyToken: Property manager can modify whitelist
         vm.prank(propertyManager);

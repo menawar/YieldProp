@@ -4,7 +4,8 @@
  */
 
 import { expect } from 'chai';
-import { MarketDataOracle, MockMarketDataOracle } from '../services/marketDataOracle';
+import { MarketDataOracle } from '../services/marketDataOracle';
+import { MockMarketDataOracle } from '../services/__mocks__/marketDataOracle';
 import { MarketData } from '../services/types';
 
 describe('MarketDataOracle Unit Tests', () => {
@@ -94,19 +95,19 @@ describe('MarketDataOracle Unit Tests', () => {
 
       // Create oracle with short cache duration for testing
       const shortCacheOracle = new MockMarketDataOracle();
-      
+
       // First call
       const data1 = await shortCacheOracle.fetchMarketData(address, propertyType);
-      
+
       // Manually expire cache by clearing it
       shortCacheOracle.clearCache();
-      
+
       // Wait a bit
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       // Second call - should fetch fresh data
       const data2 = await shortCacheOracle.fetchMarketData(address, propertyType);
-      
+
       // Timestamps should be different (fresh fetch)
       expect(data2.timestamp).to.be.greaterThan(data1.timestamp);
     });
@@ -122,7 +123,7 @@ describe('MarketDataOracle Unit Tests', () => {
       // This test verifies the concept - in real implementation,
       // stale data would be returned when API fails but cache exists
       const data = await oracle.fetchMarketData(address, propertyType);
-      
+
       // Fresh data should not be stale
       expect(data.isStale).to.be.false;
     });
@@ -145,7 +146,7 @@ describe('MarketDataOracle Unit Tests', () => {
       cached = oracle.getCachedData(address, propertyType);
       expect(cached).to.not.be.null;
       expect(cached!.location.address).to.equal('555 Maple Ln');
-      
+
       // Cached data should match fetched data
       expect(cached!.timestamp).to.equal(fetchedData.timestamp);
     });
@@ -281,7 +282,7 @@ describe('MarketDataOracle Unit Tests', () => {
       // Verify metrics are reasonable
       expect(data.marketMetrics.averageRent).to.be.greaterThan(0);
       expect(data.marketMetrics.medianRent).to.be.greaterThan(0);
-      
+
       // Average and median should be in similar range
       const ratio = data.marketMetrics.averageRent / data.marketMetrics.medianRent;
       expect(ratio).to.be.greaterThan(0.5);
@@ -325,7 +326,7 @@ describe('MarketDataOracle Unit Tests', () => {
      */
     it('should support cache operations', () => {
       const oracle = new MarketDataOracle('test-key', 'https://api.test.com');
-      
+
       // Should have clearCache method
       expect(oracle.clearCache).to.be.a('function');
       oracle.clearCache();

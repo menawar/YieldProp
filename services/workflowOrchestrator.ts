@@ -21,176 +21,14 @@ import { ethers } from "ethers";
 import { MarketDataOracle } from "./marketDataOracle";
 import { AIPricingAgent } from "./aiPricingAgent";
 
-// Types
-export interface WorkflowConfig {
-  name: string;
-  version: string;
-  description: string;
-  triggers: Trigger[];
-  environment: Record<string, EnvironmentVariable>;
-  steps: WorkflowStep[];
-  error_handling: ErrorHandling;
-  logging: LoggingConfig;
-  monitoring?: MonitoringConfig;
-  metadata: WorkflowMetadata;
-}
-
-export interface Trigger {
-  type: "cron" | "manual";
-  schedule?: string;
-  description: string;
-  enabled: boolean;
-}
-
-export interface EnvironmentVariable {
-  required: boolean;
-  default?: string;
-  description: string;
-  sensitive?: boolean;
-}
-
-export interface WorkflowStep {
-  id: string;
-  name: string;
-  type: "http-request" | "ethereum-transaction" | "ethereum-call";
-  description: string;
-  depends_on?: string[];
-  condition?: string;
-  config: StepConfig;
-  outputs: Record<string, OutputConfig>;
-  on_error: ErrorConfig;
-}
-
-export interface StepConfig {
-  method?: string;
-  url?: string;
-  headers?: Record<string, string>;
-  query_params?: Record<string, any>;
-  body?: any;
-  timeout?: number;
-  cache?: CacheConfig;
-  retry?: RetryConfig;
-  rpc_url?: string;
-  private_key?: string;
-  chain_id?: number;
-  contract_address?: string;
-  function_name?: string;
-  abi?: string;
-  function_args?: any[];
-  gas_limit?: number;
-  max_fee_per_gas?: number;
-  max_priority_fee_per_gas?: number;
-}
-
-export interface CacheConfig {
-  enabled: boolean;
-  ttl: number;
-  use_on_error: boolean;
-  key?: string;
-}
-
-export interface RetryConfig {
-  max_attempts: number;
-  initial_delay: number;
-  backoff_multiplier: number;
-  max_delay: number;
-  retry_on_status?: number[];
-  retry_on_timeout?: boolean;
-  retry_on_revert?: boolean;
-}
-
-export interface OutputConfig {
-  path: string;
-  transform?: string;
-  validate?: ValidationConfig;
-  default?: any;
-  description: string;
-}
-
-export interface ValidationConfig {
-  type: string;
-  min?: number;
-  max?: number;
-  min_length?: number;
-}
-
-export interface ErrorConfig {
-  action: "continue" | "halt";
-  log: boolean;
-  message?: string;
-}
-
-export interface ErrorHandling {
-  strategy: "continue" | "halt";
-  log_errors: boolean;
-  notify_on_failure: boolean;
-  max_consecutive_failures?: number;
-}
-
-export interface LoggingConfig {
-  level: string;
-  include_timestamps: boolean;
-  include_step_outputs: boolean;
-  include_step_duration?: boolean;
-  format: string;
-  destination: string;
-}
-
-export interface MonitoringConfig {
-  enabled: boolean;
-  metrics: MetricConfig[];
-  alerts: AlertConfig[];
-}
-
-export interface MetricConfig {
-  name: string;
-  description: string;
-  unit: string;
-}
-
-export interface AlertConfig {
-  condition: string;
-  severity?: string;
-  message: string;
-}
-
-export interface WorkflowMetadata {
-  author: string;
-  created: string;
-  updated?: string;
-  version: string;
-  hackathon?: string;
-  category: string;
-  tags: string[];
-  requirements_validated?: string[];
-}
-
-export interface WorkflowState {
-  workflow_id: string;
-  execution_id: string;
-  start_time: number;
-  end_time?: number;
-  status: "running" | "completed" | "failed";
-  current_step?: string;
-  step_outputs: Record<string, any>;
-  errors: WorkflowError[];
-  metrics: Record<string, any>;
-}
-
-export interface WorkflowError {
-  step_id: string;
-  timestamp: number;
-  error: string;
-  stack?: string;
-}
-
-export interface StepExecutionResult {
-  success: boolean;
-  outputs: Record<string, any>;
-  error?: string;
-  duration: number;
-  cached?: boolean;
-}
+import {
+  WorkflowConfig,
+  WorkflowState,
+  WorkflowStep,
+  StepExecutionResult,
+  RetryConfig,
+  OutputConfig
+} from "./types";
 
 /**
  * Workflow Orchestrator Class
@@ -271,10 +109,10 @@ export class WorkflowOrchestrator {
       // Handle workflow-level errors
       this.state.status = "failed";
       this.state.end_time = Date.now();
-      
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.log("error", `❌ Workflow failed: ${errorMessage}`);
-      
+
       this.state.errors.push({
         step_id: "workflow",
         timestamp: Date.now(),
@@ -319,7 +157,7 @@ export class WorkflowOrchestrator {
 
       // Execute step based on type
       let result: StepExecutionResult;
-      
+
       switch (step.type) {
         case "http-request":
           result = await this.executeHttpRequest(step);
@@ -348,7 +186,7 @@ export class WorkflowOrchestrator {
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.log("error", `✗ Step ${step.id} failed after ${duration}ms: ${errorMessage}`);
 
       // Record error
@@ -377,7 +215,7 @@ export class WorkflowOrchestrator {
    */
   private async executeHttpRequest(step: WorkflowStep): Promise<StepExecutionResult> {
     const startTime = Date.now();
-    
+
     // Special handling for known endpoints
     if (step.id === "fetch-market-data") {
       return await this.executeFetchMarketData(step);
@@ -418,7 +256,7 @@ export class WorkflowOrchestrator {
           };
 
           const response = await fetch(url, fetchOptions);
-          
+
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
@@ -473,7 +311,7 @@ export class WorkflowOrchestrator {
         process.env.PROPERTY_TYPE || "",
         parseInt(process.env.MARKET_DATA_RADIUS_MILES || "5")
       );
-      
+
       return {
         success: true,
         outputs: {
@@ -497,7 +335,7 @@ export class WorkflowOrchestrator {
     try {
       // Get market data from previous step
       const marketData = this.state.step_outputs["fetch-market-data"]?.market_data;
-      
+
       if (!marketData) {
         throw new Error("Market data not available from previous step");
       }
@@ -699,7 +537,7 @@ export class WorkflowOrchestrator {
     try {
       // Substitute variables in condition
       const evaluatedCondition = this.substituteVariables(condition);
-      
+
       // Simple evaluation (in production, use a safe expression evaluator)
       // For now, just check if it contains ">" and evaluate
       if (evaluatedCondition.includes(">")) {
@@ -726,13 +564,13 @@ export class WorkflowOrchestrator {
           const parts = varName.split(".");
           const stepId = parts[1];
           const outputPath = parts.slice(3).join(".");
-          
+
           const stepOutput = this.state.step_outputs[stepId];
           if (stepOutput) {
             return this.getNestedValue(stepOutput, outputPath) || match;
           }
         }
-        
+
         // Otherwise, it's an environment variable
         return process.env[varName] || match;
       });
@@ -802,7 +640,7 @@ export class WorkflowOrchestrator {
    */
   private getFromCache(key: string, allowStale: boolean = false): any | null {
     const cached = this.cache.get(key);
-    
+
     if (!cached) {
       return null;
     }

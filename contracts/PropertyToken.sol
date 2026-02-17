@@ -77,7 +77,7 @@ contract PropertyToken is ERC20, AccessControlDefaultAdminRules, ReentrancyGuard
     uint256 private constant TOKEN_DECIMALS = 18;
     
     // ERC-1066 Status Codes
-    bytes1 private constant STATUS_TRANSFER_FAILURE = 0x50;
+
     bytes1 private constant STATUS_TRANSFER_SUCCESS = 0x51;
     bytes1 private constant STATUS_INSUFFICIENT_BALANCE = 0x52;
     bytes1 private constant STATUS_INVALID_SENDER = 0x56;
