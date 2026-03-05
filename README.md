@@ -1,110 +1,16 @@
 # YieldProp — AI-Powered Real Estate Yield Optimization
 
-> Built for [Chainlink Convergence Hackathon](https://chain.link/hackathon) — DeFi & Tokenization Track + Tenderly Virtual TestNets Track
-
 ## Overview
 
 YieldProp tokenizes real estate as **ERC-1400 security tokens**, uses a **Chainlink CRE workflow** to fetch market data and generate AI-powered rental pricing via OpenAI, and automatically distributes yields to fractional token holders. The entire workflow is orchestrated, tested, and validated on a **Tenderly Virtual TestNet** with real-time mainnet state synchronization.
 
-## Chainlink Files
+### Market Data Flow
 
-> **Hackathon requirement**: Link to all files that use Chainlink.
+The CRE workflow calls `marketDataApiUrl` which points to the dashboard's `/api/market-data` endpoint — a smart adapter that:
+- Uses **free Redfin-sourced reference data** by default (no API key needed)
+- Upgrades to **live RentCast data** automatically when `RENTCAST_API_KEY` is set
 
-| File | Description |
-|------|-------------|
-| [`cre-workflow/yieldprop-workflow/main.ts`](cre-workflow/yieldprop-workflow/main.ts) | CRE workflow entry point — cron trigger, HTTP/Confidential HTTP data fetching, consensus aggregation, EVM reserve health checks |
-| [`cre-workflow/yieldprop-workflow/workflow.yaml`](cre-workflow/yieldprop-workflow/workflow.yaml) | Workflow-specific CRE config (staging, production, confidential, tenderly targets) |
-| [`cre-workflow/yieldprop-workflow/abi.ts`](cre-workflow/yieldprop-workflow/abi.ts) | Contract ABIs used by CRE EVMClient for on-chain reserve health queries |
-| [`cre-workflow/project.yaml`](cre-workflow/project.yaml) | Global CRE project config — RPC URLs for Sepolia, Tenderly Virtual TestNet |
-| [`cre-workflow/secrets.yaml`](cre-workflow/secrets.yaml) | CRE secret declarations (RENTCAST_API_KEY, OPENAI_API_KEY) |
-| [`cre-workflow/yieldprop-workflow/config.tenderly.json`](cre-workflow/yieldprop-workflow/config.tenderly.json) | CRE config for Tenderly target — contract addresses, property params |
-| [`contracts/RecommendationConsumer.sol`](contracts/RecommendationConsumer.sol) | CRE consumer contract — receives signed reports, calls PriceManager.submitRecommendation() |
-| [`contracts/IReceiver.sol`](contracts/IReceiver.sol) | Chainlink IReceiver interface for CRE on-chain write |
-| [`scripts/deploy-consumer.ts`](scripts/deploy-consumer.ts) | Deploys RecommendationConsumer, grants PROPERTY_MANAGER_ROLE |
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Chainlink CRE Workflow                           │
-│                  (cre-workflow/main.ts)                             │
-│                                                                     │
-│  ┌─────────────┐   ┌──────────────┐   ┌─────────────────────────┐  │
-│  │ Cron Trigger │──▶│ RentCast API │──▶│ OpenAI Pricing Analysis │  │
-│  │ (30s cycle)  │   │ Market Data  │   │ (AI Recommendation)     │  │
-│  └─────────────┘   └──────────────┘   └───────────┬─────────────┘  │
-│                                                     │               │
-│  ┌──────────────────────────────────────────────────▼────────────┐  │
-│  │              Reserve Health Check (EVMClient read)            │  │
-│  │  query YieldDistributor.distributionPool()                    │  │
-│  │  query PriceManager.getCurrentRentalPrice()                   │  │
-│  │  log risk event when pool < expected rent                     │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │         On-Chain Write (runtime.report + writeReport)         │  │
-│  │  → KeystoneForwarder → RecommendationConsumer                │  │
-│  │  → PriceManager.submitRecommendation(price, confidence, ...)  │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────┬───────────────────────────────────────┘
-                              │
-              ┌───────────────▼────────────────┐
-              │  Tenderly Virtual TestNet       │
-              │  (Sepolia fork, state synced)   │
-              │                                 │
-              │  ┌──────────────┐               │
-              │  │PropertyToken │ ERC-1400      │
-              │  └──────────────┘               │
-              │  ┌──────────────┐               │
-              │  │PriceManager  │ AI recs       │
-              │  └──────────────┘               │
-              │  ┌──────────────────┐           │
-              │  │YieldDistributor  │ yields    │
-              │  └──────────────────┘           │
-              │  ┌──────────────┐               │
-              │  │PropertySale  │ investments   │
-              │  └──────────────┘               │
-              │  ┌──────────────┐               │
-              │  │MockUSDC      │ stablecoin    │
-              │  └──────────────┘               │
-              │                                 │
-              │  Explorer: view txns, contracts │
-              └─────────────────────────────────┘
-                              │
-              ┌───────────────▼────────────────┐
-              │       Next.js Dashboard        │
-              │  Invest · Manage · Distribute  │
-              │  Real-time updates (wagmi)     │
-              └────────────────────────────────┘
-```
-
-### How CRE + Tenderly Work Together
-
-1. **Tenderly Virtual TestNet** provides a zero-setup, mainnet-state-synced Sepolia fork with unlimited faucet, built-in explorer, and debugging tools.
-2. Smart contracts are deployed to the Virtual TestNet via `npm run deploy:tenderly`, which auto-updates CRE config with fresh contract addresses.
-3. **CRE workflow** runs against the Virtual TestNet RPC, performing:
-   - **Off-chain data fetching** — RentCast API for comparable rental data (HTTP with DON consensus)
-   - **AI analysis** — OpenAI generates pricing recommendation (aggregated via median consensus)
-   - **On-chain reads** — `EVMClient` queries `YieldDistributor.distributionPool()` and `PriceManager.getCurrentRentalPrice()` to check reserve health
-   - **Risk monitoring** — logs `RESERVE_RISK` event when pool balance < expected monthly rent
-   - **On-chain write** — `runtime.report()` + `EVMClient.writeReport()` submits the signed recommendation through the `KeystoneForwarder` → `RecommendationConsumer` → `PriceManager.submitRecommendation()`
-4. The Virtual TestNet Explorer shows all deployment transactions, CRE write transactions, contract state changes, and event logs — providing full transparency for validation.
-
-### Why This Matters
-
-- **Rapid development**: Deploy + test full CRE workflows against real contract state without public testnet faucet limitations
-- **Reproducible environment**: State-synced forks ensure consistent testing across team members
-- **Full observability**: Tenderly Explorer + debugger reveals exact transaction flow, gas usage, and state changes
-- **Production validation**: Same CRE workflow code runs on staging (public Sepolia) and Tenderly, proving portability
-
-## Features
-
-- **Property Tokenization**: ERC-1400 security token with whitelist-based transfer restrictions
-- **AI-Powered Pricing**: CRE workflow fetches market data (RentCast) → AI analysis (OpenAI) → on-chain recommendation
-- **Reserve Health Monitoring**: CRE queries on-chain pool balance vs expected rent, flags risk events
-- **Automated Yield Distribution**: Proportional rental income distribution to fractional token holders
-- **Confidential HTTP** (Phase 5): API keys protected in secure enclave, never exposed on-chain
-- **Tenderly Virtual TestNet** (Phase 6): Full deployment + CRE simulation on Tenderly fork
-- **Next.js Dashboard**: Real-time investment, management, and yield distribution UI
+This means the CRE workflow itself never needs to talk directly to RentCast.
 
 ## Smart Contracts
 
@@ -116,6 +22,289 @@ YieldProp tokenizes real estate as **ERC-1400 security tokens**, uses a **Chainl
 | `PropertySale.sol` | Token purchase mechanism with USDC payments and auto-holder registration |
 | `MockERC20.sol` | Test stablecoin (USDC) for development |
 
+## Features
+
+- **Property Tokenization**: ERC-1400 security token with whitelist-based transfer restrictions
+- **AI-Powered Pricing**: CRE workflow fetches market data → AI analysis (OpenAI) → on-chain recommendation
+- **Reserve Health Monitoring**: CRE queries on-chain pool balance vs expected rent, flags risk events
+- **Automated Yield Distribution**: Proportional rental income distribution to fractional token holders
+- **Confidential HTTP** (Phase 5): API keys protected in secure enclave, never exposed on-chain
+- **Tenderly Virtual TestNet** (Phase 6): Full deployment + CRE simulation on Tenderly fork
+- **Next.js Dashboard**: Real-time investment, management, and yield distribution UI
+
+---
+
+## End-to-End Setup (Fresh Deployment)
+
+### Prerequisites
+
+| Tool | Version | Install |
+|------|---------|---------|
+| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
+| Bun | 1.2+ | `curl -fsSL https://bun.sh/install \| bash` |
+| Foundry | latest | `curl -L https://foundry.paradigm.xyz \| bash && foundryup` |
+| CRE CLI | 1.0+ | [docs.chain.link/cre/getting-started/cli-installation](https://docs.chain.link/cre/getting-started/cli-installation) |
+
+You will also need:
+- A funded **Sepolia wallet** (get ETH from [faucets.chain.link](https://faucets.chain.link))
+- An **Alchemy** (or Infura) Sepolia RPC URL
+- An **OpenAI** API key ([platform.openai.com](https://platform.openai.com))
+- *(Optional)* A **RentCast** API key for live rental data ([rentcast.io](https://app.rentcast.io))
+- *(Optional)* A **Tenderly** account for the Virtual TestNet track ([dashboard.tenderly.co](https://dashboard.tenderly.co))
+
+---
+
+### Step 1 — Clone & Install Dependencies
+
+```bash
+git clone <repo-url> && cd tokenise
+npm install
+npm run cre:setup        # Installs CRE workflow deps via Bun
+cd dashboard && npm install && cd ..
+```
+
+---
+
+### Step 2 — Configure Environment
+
+#### Root `.env` (Hardhat + CRE CLI)
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your values:
+
+```bash
+# Required
+PRIVATE_KEY=0x<your-wallet-private-key>
+SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/<your-alchemy-key>
+
+# CRE CLI (same private key, NO 0x prefix)
+CRE_ETH_PRIVATE_KEY=<your-64-char-hex-key-without-0x>
+ETHEREUM_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/<your-alchemy-key>
+
+# API keys for CRE workflow
+OPENAI_API_KEY=sk-...
+RENTCAST_API_KEY=<optional>
+
+# Property config (used during deployment)
+PROPERTY_ADDRESS=123 Main St, San Francisco, CA
+PROPERTY_TYPE=Single Family
+PROPERTY_VALUATION=500000
+```
+
+#### Mirror to CRE workflow `.env`
+
+```bash
+cp .env cre-workflow/.env
+```
+
+#### Dashboard `.env.local`
+
+```bash
+cp dashboard/.env.local.example dashboard/.env.local 2>/dev/null || touch dashboard/.env.local
+```
+
+Add your RPC URL (contract addresses will be filled automatically in Step 5):
+
+```bash
+NEXT_PUBLIC_SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/<your-alchemy-key>
+```
+
+---
+
+### Step 3 — Compile & Test
+
+```bash
+npm run compile          # Compile Solidity with Hardhat
+npm run compile:forge    # Compile with Foundry (optional, runs Forge tests)
+npm test                 # Run Hardhat test suite
+npm run test:property    # Run Foundry tests
+```
+
+All tests should pass before deploying.
+
+---
+
+### Step 4 — Deploy Contracts to Sepolia
+
+```bash
+npm run deploy
+```
+
+This deploys: `MockUSDC` → `PropertyToken` → `PriceManager` → `YieldDistributor` → `PropertySale`
+
+The script prints all contract addresses and saves a timestamped JSON to `deployments/sepolia-<timestamp>.json`.
+
+> **Multi-property mode**: `MULTI=true npm run deploy` deploys two properties using the default config in `scripts/deploy.ts`.
+
+---
+
+### Step 5 — Sync Addresses to Dashboard
+
+After deployment, run the sync script to automatically update `dashboard/.env.local` with the fresh contract addresses:
+
+```bash
+npm run sync:addresses
+```
+
+This reads the latest deployment JSON from `deployments/` and writes the correct `NEXT_PUBLIC_*` addresses into `dashboard/.env.local`. You should see output like:
+
+```
+NEXT_PUBLIC_PROPERTY_TOKEN_ADDRESS=0x...
+NEXT_PUBLIC_PRICE_MANAGER_ADDRESS=0x...
+NEXT_PUBLIC_YIELD_DISTRIBUTOR_ADDRESS=0x...
+NEXT_PUBLIC_MOCK_USDC_ADDRESS=0x...
+NEXT_PUBLIC_PROPERTY_SALE_ADDRESS=0x...
+
+Updated dashboard/.env.local
+```
+
+> **Important**: Always run `sync:addresses` after a fresh deployment. Stale addresses in `dashboard/.env.local` will cause the dashboard to connect to old (or non-existent) contracts.
+
+---
+
+### Step 6 — Mint Test USDC
+
+Mint test USDC to your wallet so you can invest and trigger yield distributions:
+
+```bash
+npm run mint:usdc
+```
+
+By default mints to the `MINT_TO` address in `.env`. Edit `MINT_AMOUNT` in `.env` to change the amount (default: 10,000 USDC).
+
+---
+
+### Step 7 — Run CRE Simulation
+
+Login to CRE (one-time):
+
+```bash
+cre login
+```
+
+Run the workflow simulation (mock mode — no API keys needed):
+
+```bash
+npm run cre:simulate
+```
+
+Expected output:
+```
+Workflow compiled
+[SIMULATION] Simulator Initialized
+[USER LOG] YieldProp workflow triggered.
+[USER LOG] Using mock recommendation (no API calls).
+[USER LOG] Recommendation: $3000/mo, confidence 75%
+
+Workflow Simulation Result:
+{"recommendedPrice":3000,"confidenceScore":75,...}
+```
+
+**Other simulation modes:**
+
+```bash
+npm run cre:simulate:confidential   # Privacy track — Confidential HTTP mode
+npm run cre:simulate:production     # Uses real RentCast + OpenAI (requires API keys)
+```
+
+---
+
+### Step 8 — (Optional) Deploy Consumer for CRE On-Chain Writes
+
+To enable the CRE workflow to write AI recommendations on-chain:
+
+```bash
+npm run deploy:consumer:sepolia
+```
+
+Then update `cre-workflow/yieldprop-workflow/config.staging.json` with the `recommendationConsumerAddress` printed by the script.
+
+---
+
+### Step 9 — (Optional) Tenderly Virtual TestNet
+
+#### 9.1 Create a Virtual TestNet
+
+1. Go to [dashboard.tenderly.co](https://dashboard.tenderly.co) → **Virtual TestNets** → **Create**
+2. Fork **Sepolia** (chainId 11155111), enable **Public Explorer** and **State Sync**
+3. Copy the **Admin RPC URL**
+4. Add to **both** `.env` and `cre-workflow/.env`:
+   ```bash
+   TENDERLY_VIRTUAL_TESTNET_RPC=https://virtual.sepolia.rpc.tenderly.co/...
+   TENDERLY_CHAIN_ID=11155111
+   ```
+5. Also update the `tenderly-settings` URL in `cre-workflow/project.yaml` to match.
+
+#### 9.2 Run the Full Tenderly Pipeline
+
+```bash
+npm run tenderly:full
+```
+
+This runs three steps in sequence:
+1. `deploy:tenderly` — deploys all contracts to the Virtual TestNet and auto-updates `config.tenderly.json`
+2. `deploy:consumer:tenderly` — deploys the CRE consumer contract and grants role
+3. `cre:simulate:tenderly` — runs the full CRE workflow against the Virtual TestNet
+
+Or step by step:
+
+```bash
+npm run deploy:tenderly              # Step 1
+npm run deploy:consumer:tenderly     # Step 2
+npm run cre:simulate:tenderly        # Step 3
+```
+
+After running, open the **Tenderly Explorer** tab to view all deployment transactions, contract state reads, and CRE write transactions. Enable **Public Explorer** for a shareable URL to include in your hackathon submission.
+
+---
+
+### Step 10 — Start the Dashboard
+
+```bash
+cd dashboard && npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+The dashboard connects to the contract addresses in `dashboard/.env.local` (synced in Step 5). Features:
+- **Invest**: Buy property tokens with Mock USDC
+- **Manage**: Whitelist addresses, accept AI price recommendations
+- **Yield**: Deposit rental income and trigger distributions to holders
+
+---
+
+## CRE Workflow Modes Reference
+
+| Mode | Config | Description |
+|------|--------|-------------|
+| Mock | `useMockRecommendation: true` | Rule-based recommendation, no API calls. Use for demos. |
+| Standard HTTP | `useMockRecommendation: false` | Real market data + OpenAI. Requires `OPENAI_API_KEY`. |
+| Confidential HTTP | `useConfidentialHttp: true` | API keys injected by secure enclave. Live DON only. |
+
+## NPM Scripts Reference
+
+| Script | Description |
+|--------|-------------|
+| `npm run compile` | Compile Solidity (Hardhat) |
+| `npm run test` | Run Hardhat tests |
+| `npm run test:property` | Run Foundry tests |
+| `npm run deploy` | Deploy to Sepolia |
+| `npm run deploy:local` | Deploy to local Hardhat node |
+| `npm run deploy:tenderly` | Deploy to Tenderly Virtual TestNet |
+| `npm run deploy:consumer:sepolia` | Deploy CRE consumer to Sepolia |
+| `npm run deploy:consumer:tenderly` | Deploy CRE consumer to Tenderly |
+| `npm run sync:addresses` | Sync latest deployment addresses into `dashboard/.env.local` |
+| `npm run mint:usdc` | Mint test USDC to wallet |
+| `npm run cre:setup` | Install CRE workflow Bun dependencies |
+| `npm run cre:simulate` | Simulate CRE workflow (staging/mock) |
+| `npm run cre:simulate:confidential` | Simulate CRE workflow (confidential HTTP) |
+| `npm run cre:simulate:tenderly` | Simulate CRE workflow against Tenderly |
+| `npm run tenderly:full` | Full Tenderly pipeline: deploy + consumer + CRE simulate |
+| `npm run verify` | Verify contracts on Etherscan |
+
 ## Project Structure
 
 ```
@@ -124,136 +313,37 @@ YieldProp tokenizes real estate as **ERC-1400 security tokens**, uses a **Chainl
 ├── cre-workflow/               # Chainlink CRE workflow
 │   ├── project.yaml            # RPC config (Sepolia, Tenderly)
 │   ├── secrets.yaml            # API key declarations
+│   ├── .env                    # CRE CLI secrets (copy from root .env)
 │   └── yieldprop-workflow/
-│       ├── main.ts             # CRE entry point
+│       ├── main.ts             # CRE workflow entry point
 │       ├── workflow.yaml       # Workflow targets
 │       ├── abi.ts              # Contract ABIs for EVMClient
-│       ├── config.staging.json
-│       ├── config.production.json
-│       ├── config.tenderly.json
-│       └── config.confidential.json
+│       ├── config.staging.json      # Mock mode, Sepolia
+│       ├── config.production.json   # Live APIs, Sepolia
+│       ├── config.tenderly.json     # Tenderly target (auto-updated by deploy)
+│       └── config.confidential.json # Confidential HTTP mode
 ├── dashboard/                  # Next.js frontend
+│   └── .env.local              # Dashboard contract addresses (auto-synced)
 ├── scripts/                    # Deployment & setup scripts
-│   ├── deploy.ts               # Hardhat deploy (Sepolia + Tenderly)
-│   ├── deploy-consumer.ts      # Deploy RecommendationConsumer for CRE writes
-│   ├── sync-dashboard-addresses.js
-│   └── mint-usdc.ts
-├── deployments/                # Deployment artifacts (JSON)
-├── test/                       # Contract & workflow tests
-├── services/                   # Node.js workflow orchestrator
-├── workflows/                  # YAML workflow definitions
-└── hardhat.config.ts           # Hardhat config (Sepolia + Tenderly networks)
+│   ├── deploy.ts               # Main deploy script (Sepolia + Tenderly)
+│   ├── deploy-consumer.ts      # Deploy CRE RecommendationConsumer
+│   ├── sync-dashboard-addresses.js  # Sync addresses → dashboard/.env.local
+│   └── mint-usdc.ts            # Mint test USDC
+├── deployments/                # Deployment artifacts (JSON, auto-generated)
+├── test/                       # Hardhat & Foundry tests
+└── hardhat.config.ts           # Network config (Sepolia + Tenderly)
 ```
-
-## Quick Start
-
-### 1. Install Dependencies
-
-```bash
-npm install
-npm run cre:setup   # Install CRE workflow dependencies (requires Bun)
-```
-
-### 2. Configure Environment
-
-```bash
-cp .env.example .env
-# Edit .env with your keys (PRIVATE_KEY, RENTCAST_API_KEY, OPENAI_API_KEY)
-```
-
-### 3. Compile & Test
-
-```bash
-npm run compile
-npm test
-```
-
-### 4. Deploy to Sepolia
-
-```bash
-npm run deploy
-```
-
-## CRE Workflow Details
-
-The CRE workflow (`cre-workflow/yieldprop-workflow/main.ts`) orchestrates:
-
-1. **Cron Trigger** — fires every 30 seconds (configurable)
-2. **Market Data Fetch** — RentCast API with DON consensus aggregation
-3. **AI Pricing** — OpenAI generates recommendation (median + identical consensus)
-4. **Reserve Health** — EVMClient reads on-chain contract state:
-   - `YieldDistributor.distributionPool()` — current USDC in pool
-   - `PriceManager.getCurrentRentalPrice()` — expected monthly rent
-   - Logs `RESERVE_RISK` when pool < expected rent
-5. **Output** — JSON with recommendation + reserve health status
-
-### Three Execution Modes
-
-| Mode | Config Flag | Description |
-|------|-------------|-------------|
-| Mock | `useMockRecommendation: true` | Rule-based recommendation, no API calls |
-| Standard HTTP | `useMockRecommendation: false` | Real RentCast + OpenAI with DON secrets |
-| Confidential HTTP | `useConfidentialHttp: true` | API keys in secure enclave (Phase 5) |
-
-### Four CRE Targets
-
-### CRE Targets
-
-| Target | Command | Description |
-|--------|---------|-------------|
-| `staging-settings` | `cre workflow simulate` | Public Sepolia RPC, mock mode |
-| `production-settings` | — | Public Sepolia RPC, real APIs |
-
-
-## Dashboard
-
-The Next.js dashboard provides a real-time interface for:
-- **Invest**: Purchase property tokens with USDC
-- **Management**: Whitelist addresses, submit/accept price recommendations, manage distributions
-- **Yield Distribution**: View and trigger rental yield distributions
-
-See [`dashboard/`](dashboard/) for setup instructions.
-
-## NPM Scripts Reference
-
-| Script | Description |
-|--------|-------------|
-| `npm run test` | Run Hardhat tests |
-| `npm run compile` | Compile Solidity contracts |
-| `npm run deploy` | Deploy to Sepolia |
-| `npm run deploy:local` | Deploy to local Hardhat network |
-| `npm run deploy:consumer:tenderly` | Deploy RecommendationConsumer and grant role |
-| `npm run mint:usdc` | Mint mock USDC to test accounts |
-| `npm run sync:addresses` | Update dashboard with deployed addresses |
-| `npm run cre:setup` | Install CRE workflow dependencies (Bun) |
-| `npm run cre:simulate:tenderly` | Run CRE simulation on tenderly target |
-| `npm run tenderly:full` | Deploy + consumer deploy + CRE tenderly simulation |
-| `npm run verify` | Verify contracts on Etherscan |
-
 
 ## Troubleshooting
 
-**Tenderly quota limit**: Create a new Virtual TestNet from the [Tenderly dashboard](https://dashboard.tenderly.co) and update `TENDERLY_VIRTUAL_TESTNET_RPC`.
+**`invalid scheme in RPC URL`** — CRE CLI v1.0.x does not expand `${ENV_VAR}` in `project.yaml`. Edit the file directly with your literal RPC URL.
 
-**OpenAI 429 / insufficient_quota**: Add credits at [platform.openai.com/account/billing](https://platform.openai.com/account/billing).
+**`Tenderly quota limit`** — Create a new Virtual TestNet from the [Tenderly dashboard](https://dashboard.tenderly.co) and update `TENDERLY_VIRTUAL_TESTNET_RPC` in `.env`, `cre-workflow/.env`, and `cre-workflow/project.yaml`.
 
-**CRE CLI not found**: Install from [Chainlink CRE Installation](https://docs.chain.link/cre/getting-started/cli-installation).
+**`CRE CLI not found`** — Make sure `$HOME/.cre/bin` is on your PATH: `export PATH="$HOME/.cre/bin:$PATH"`. Install from [docs.chain.link/cre/getting-started/cli-installation](https://docs.chain.link/cre/getting-started/cli-installation).
 
-**Bun not found**: Required for CRE workflows. Install from [bun.sh](https://bun.sh).
+**`OpenAI 429 / insufficient_quota`** — Add credits at [platform.openai.com/account/billing](https://platform.openai.com/account/billing).
 
-## License
+**`Bun not found`** — Required for CRE workflows. Install from [bun.sh](https://bun.sh).
 
-MIT
-
-## Hackathon
-
-Built for [Chainlink Convergence Hackathon](https://chain.link/hackathon) — **DeFi & Tokenization** + **Tenderly Virtual TestNets** tracks.
-
-### Submission Checklist
-
-- [x] CRE Workflow integrating blockchain + external API (RentCast) + AI (OpenAI)
-- [x] Smart contracts deployed on Ethereum Sepolia testnet
-- [x] Tenderly Virtual TestNet deployment with explorer link
-- [x] CRE workflow simulation against Tenderly Virtual TestNet
-- [x] GitHub repository with source code, deployment scripts, and documentation
-- [x] Architecture documentation explaining CRE + Tenderly integration
+**Dashboard shows wrong contract data** — Run `npm run sync:addresses` to resync after any redeployment.
