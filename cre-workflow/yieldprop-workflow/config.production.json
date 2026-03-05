@@ -1,9 +1,9 @@
 {
   "schedule": "0 */6 * * *",
   "useMockRecommendation": false,
-  "propertyAddress": "",
+  "propertyAddress": "123 Main St, San Francisco, CA",
   "propertyType": "Single Family",
-  "propertyValuation": 5000,
+  "propertyValuation": 500000,
   "marketDataRadiusMiles": "5",
   "marketDataApiUrl": "https://your-deployed-dashboard.vercel.app/api/market-data",
   "openaiModel": "gpt-4o-mini"

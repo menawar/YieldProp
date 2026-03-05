@@ -32,16 +32,16 @@ const DEFAULT_MULTI_PROPERTIES: PropertyConfig[] = [
     name: "123 Main St",
     address: "123 Main St, San Francisco, CA",
     propertyType: "Single Family",
-    valuation: "5000",
-    initialRentalPrice: "2000",
+    valuation: "500000",
+    initialRentalPrice: "200000",
   },
   {
     id: "prop-2",
     name: "456 Oak Ave",
     address: "456 Oak Ave, Los Angeles, CA",
     propertyType: "Condo",
-    valuation: "3500",
-    initialRentalPrice: "1500",
+    valuation: "350000",
+    initialRentalPrice: "150000",
   },
 ];
 
@@ -160,9 +160,9 @@ async function main() {
   console.log("✅ Mock USDC:", stablecoinAddress, "\n");
 
   // Mint test USDC
-  const mintAmount = ethers.parseUnits("100000", 6);
+  const mintAmount = ethers.parseUnits("2000000", 6);
   await (await stablecoin.mint(deployer.address, mintAmount)).wait();
-  console.log("   Minted 100,000 USDC to deployer");
+  console.log("   Minted 2,000,000 USDC to deployer");
 
   // Determine Properties to Deploy
   let propertiesToDeploy: PropertyConfig[] = [];
@@ -273,7 +273,7 @@ async function main() {
     console.log(`NEXT_PUBLIC_PRICE_MANAGER_ADDRESS=${p.contracts.PriceManager}`);
     console.log(`NEXT_PUBLIC_YIELD_DISTRIBUTOR_ADDRESS=${p.contracts.YieldDistributor}`);
     console.log(`NEXT_PUBLIC_PROPERTY_SALE_ADDRESS=${p.contracts.PropertySale}`);
-    console.log(`NEXT_PUBLIC_USDC_ADDRESS=${stablecoinAddress}`);
+    console.log(`NEXT_PUBLIC_MOCK_USDC_ADDRESS=${stablecoinAddress}`);
   }
 
   console.log("\n✨ Deployment completed!");

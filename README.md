@@ -18,11 +18,9 @@ YieldProp tokenizes real estate as **ERC-1400 security tokens**, uses a **Chainl
 | [`cre-workflow/project.yaml`](cre-workflow/project.yaml) | Global CRE project config — RPC URLs for Sepolia, Tenderly Virtual TestNet |
 | [`cre-workflow/secrets.yaml`](cre-workflow/secrets.yaml) | CRE secret declarations (RENTCAST_API_KEY, OPENAI_API_KEY) |
 | [`cre-workflow/yieldprop-workflow/config.tenderly.json`](cre-workflow/yieldprop-workflow/config.tenderly.json) | CRE config for Tenderly target — contract addresses, property params |
-| [`scripts/setup-tenderly-cre.js`](scripts/setup-tenderly-cre.js) | Auto-updates CRE project.yaml with Tenderly Virtual TestNet RPC URL |
 | [`contracts/RecommendationConsumer.sol`](contracts/RecommendationConsumer.sol) | CRE consumer contract — receives signed reports, calls PriceManager.submitRecommendation() |
 | [`contracts/IReceiver.sol`](contracts/IReceiver.sol) | Chainlink IReceiver interface for CRE on-chain write |
 | [`scripts/deploy-consumer.ts`](scripts/deploy-consumer.ts) | Deploys RecommendationConsumer, grants PROPERTY_MANAGER_ROLE |
-| [`scripts/create-tenderly-vnet.js`](scripts/create-tenderly-vnet.js) | Creates new Tenderly Virtual TestNet via REST API |
 
 ## Architecture
 
@@ -137,9 +135,9 @@ YieldProp tokenizes real estate as **ERC-1400 security tokens**, uses a **Chainl
 ├── dashboard/                  # Next.js frontend
 ├── scripts/                    # Deployment & setup scripts
 │   ├── deploy.ts               # Hardhat deploy (Sepolia + Tenderly)
-│   ├── setup-tenderly-cre.js   # Update CRE config with Tenderly RPC
-│   ├── create-tenderly-vnet.js # Create VNet via Tenderly REST API
-│   └── verify-tenderly-deployment.js  # Post-deploy verification
+│   ├── deploy-consumer.ts      # Deploy RecommendationConsumer for CRE writes
+│   ├── sync-dashboard-addresses.js
+│   └── mint-usdc.ts
 ├── deployments/                # Deployment artifacts (JSON)
 ├── test/                       # Contract & workflow tests
 ├── services/                   # Node.js workflow orchestrator
@@ -214,7 +212,7 @@ The Next.js dashboard provides a real-time interface for:
 - **Management**: Whitelist addresses, submit/accept price recommendations, manage distributions
 - **Yield Distribution**: View and trigger rental yield distributions
 
-See [`dashboard/`](dashboard/) and [`DASHBOARD_SETUP.md`](DASHBOARD_SETUP.md) for setup instructions.
+See [`dashboard/`](dashboard/) for setup instructions.
 
 ## NPM Scripts Reference
 
@@ -224,14 +222,18 @@ See [`dashboard/`](dashboard/) and [`DASHBOARD_SETUP.md`](DASHBOARD_SETUP.md) fo
 | `npm run compile` | Compile Solidity contracts |
 | `npm run deploy` | Deploy to Sepolia |
 | `npm run deploy:local` | Deploy to local Hardhat network |
+| `npm run deploy:consumer:tenderly` | Deploy RecommendationConsumer and grant role |
 | `npm run mint:usdc` | Mint mock USDC to test accounts |
 | `npm run sync:addresses` | Update dashboard with deployed addresses |
+| `npm run cre:setup` | Install CRE workflow dependencies (Bun) |
+| `npm run cre:simulate:tenderly` | Run CRE simulation on tenderly target |
+| `npm run tenderly:full` | Deploy + consumer deploy + CRE tenderly simulation |
 | `npm run verify` | Verify contracts on Etherscan |
 
 
 ## Troubleshooting
 
-**Tenderly quota limit**: Create a new Virtual TestNet via `npm run create:tenderly-vnet` or the [dashboard](https://dashboard.tenderly.co).
+**Tenderly quota limit**: Create a new Virtual TestNet from the [Tenderly dashboard](https://dashboard.tenderly.co) and update `TENDERLY_VIRTUAL_TESTNET_RPC`.
 
 **OpenAI 429 / insufficient_quota**: Add credits at [platform.openai.com/account/billing](https://platform.openai.com/account/billing).
 

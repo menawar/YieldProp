@@ -30,8 +30,11 @@ async function main() {
 
   if (files.length > 0) {
     const deployment = JSON.parse(fs.readFileSync(path.join(deploymentsDir, files[0]), "utf8"));
-    priceManagerAddress = deployment.contracts.PriceManager;
-    console.log(`Using PriceManager from ${files[0]}: ${priceManagerAddress}`);
+    priceManagerAddress =
+      deployment.contracts?.PriceManager ||
+      deployment.properties?.[0]?.contracts?.PriceManager ||
+      "";
+    console.log(`Using PriceManager from ${files[0]}: ${priceManagerAddress || "not found"}`);
   } else {
     priceManagerAddress = process.env.PRICE_MANAGER_ADDRESS || "";
     console.log(`Using PriceManager from env: ${priceManagerAddress}`);
@@ -82,6 +85,7 @@ async function main() {
   if (files.length > 0) {
     const deploymentPath = path.join(deploymentsDir, files[0]);
     const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
+    if (!deployment.contracts) deployment.contracts = {};
     deployment.contracts.RecommendationConsumer = consumerAddress;
     deployment.contracts.MockForwarder = MOCK_FORWARDER;
     fs.writeFileSync(deploymentPath, JSON.stringify(deployment, null, 2));

@@ -2,23 +2,19 @@
 
 import { useState } from 'react'
 import { parseUnits } from 'viem'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { usePropertyContracts } from '@/lib/property-context'
 import { ABIS, formatUsdc } from '@/lib/contracts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Sparkles, Check, X, Loader2 } from 'lucide-react'
+import { TransactionButton } from '@/components/ui/transaction-button'
+import { Sparkles, Check, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBlockExplorerTxUrl, getErrorMessage } from '@/lib/utils'
 import { useInvalidateOnTxConfirm } from '@/lib/use-invalidate-on-tx-confirm'
+import { usePropertyData } from '@/lib/use-property-data'
 
-const PROPERTY_MANAGER_ROLE = '0x' + '00'.repeat(32) as `0x${string}` // Will be overwritten
-
-/**
- * Task 15.1: RecommendationCard - latest AI recommendation with accept/reject
- * Requirements: 9.2, 9.5
- */
 type Recommendation = {
   id: bigint
   recommendedPrice: bigint
@@ -29,28 +25,9 @@ type Recommendation = {
 }
 
 export function RecommendationCard() {
-  const { address } = useAccount()
   const [isGenerating, setIsGenerating] = useState(false)
   const contracts = usePropertyContracts()
-
-  const { data: managerRole } = useReadContract({
-    address: contracts.PriceManager,
-    abi: ABIS.PriceManager,
-    functionName: 'PROPERTY_MANAGER_ROLE',
-  })
-
-  const { data: isManager } = useReadContract({
-    address: contracts.PriceManager,
-    abi: ABIS.PriceManager,
-    functionName: 'hasRole',
-    args: address ? [managerRole ?? '0x', address] : undefined,
-  })
-
-  const { data: propertyDetails } = useReadContract({
-    address: contracts.PropertyToken,
-    abi: ABIS.PropertyToken,
-    functionName: 'getPropertyDetails',
-  }) as { data: [string, string, bigint] | undefined }
+  const { isManager, propertyDetails } = usePropertyData()
 
   const { data: recommendationRaw, isLoading, isError, refetch: refetchRecommendation } = useReadContract({
     address: contracts.PriceManager,
@@ -60,6 +37,9 @@ export function RecommendationCard() {
   const recommendation = recommendationRaw as unknown as Recommendation | undefined
 
   const { writeContract: submitRecommendation, data: submitHash, isPending: isSubmitting } = useWriteContract()
+  const { isSuccess: isSubmitSuccess } = useWaitForTransactionReceipt({ hash: submitHash })
+  useInvalidateOnTxConfirm(submitHash, isSubmitSuccess)
+
   const handleGenerateRecommendation = async () => {
     if (!isManager) {
       toast.error('Connect as property manager to submit recommendations')
@@ -76,6 +56,8 @@ export function RecommendationCard() {
         body: JSON.stringify({
           priceManagerAddress: contracts.PriceManager,
           propertyValuation: Math.round(valuationUsd),
+          propertyAddress: propertyDetails?.[0] || undefined,
+          propertyType: propertyDetails?.[1] || undefined,
         }),
       })
       const json = await res.json()
@@ -122,14 +104,6 @@ export function RecommendationCard() {
     isPending: isRejecting,
     error: rejectError,
   } = useWriteContract()
-
-  const { isLoading: isAcceptTx, isSuccess: isAcceptSuccess } = useWaitForTransactionReceipt({ hash: acceptHash })
-  const { isLoading: isRejectTx, isSuccess: isRejectSuccess } = useWaitForTransactionReceipt({ hash: rejectHash })
-  const { isSuccess: isSubmitSuccess } = useWaitForTransactionReceipt({ hash: submitHash })
-
-  useInvalidateOnTxConfirm(acceptHash, isAcceptSuccess)
-  useInvalidateOnTxConfirm(rejectHash, isRejectSuccess)
-  useInvalidateOnTxConfirm(submitHash, isSubmitSuccess)
 
   const handleAccept = () => {
     if (!recommendation?.id || recommendation.accepted || recommendation.rejected) return
@@ -187,7 +161,7 @@ export function RecommendationCard() {
   const hasRecommendation = recommendation && recommendation.id > 0n
   const isPending = hasRecommendation && !recommendation.accepted && !recommendation.rejected
   const canAct = isManager && isPending
-  const isBusy = isAccepting || isRejecting || isAcceptTx || isRejectTx
+  const isBusy = isGenerating || isSubmitting
 
   if (isError) {
     return (
@@ -218,22 +192,14 @@ export function RecommendationCard() {
                 ? 'No recommendations yet. Generate one with AI analysis.'
                 : 'Connect as property manager to generate recommendations.'}
             </p>
-            <Button
+            <TransactionButton
               onClick={handleGenerateRecommendation}
-              disabled={isGenerating || isSubmitting || !isManager}
-            >
-              {(isGenerating || isSubmitting) ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isGenerating ? 'Generating…' : 'Confirm in wallet…'}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate AI Recommendation
-                </>
-              )}
-            </Button>
+              disabled={isBusy || !isManager}
+              isPending={isBusy}
+              txHash={submitHash}
+              loadingText={isGenerating ? 'Generating…' : 'Confirm in wallet…'}
+              defaultText={<><Sparkles className="mr-2 h-4 w-4" />Generate AI Recommendation</>}
+            />
           </div>
         ) : (
           <>
@@ -283,40 +249,37 @@ export function RecommendationCard() {
 
             {canAct && (
               <div className="flex gap-3">
-                <Button
+                <TransactionButton
                   onClick={handleAccept}
-                  disabled={isBusy}
+                  isPending={isAccepting}
+                  txHash={acceptHash}
                   className="flex-1"
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Accept
-                </Button>
-                <Button
+                  loadingText="Accepting..."
+                  defaultText={<><Check className="mr-2 h-4 w-4" />Accept</>}
+                />
+                <TransactionButton
                   variant="destructive"
                   onClick={handleReject}
-                  disabled={isBusy}
+                  isPending={isRejecting}
+                  txHash={rejectHash}
                   className="flex-1"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Reject
-                </Button>
+                  loadingText="Rejecting..."
+                  defaultText={<><X className="mr-2 h-4 w-4" />Reject</>}
+                />
               </div>
             )}
 
             <div className="pt-2 border-t">
-              <Button
+              <TransactionButton
                 variant="outline"
                 size="sm"
                 onClick={handleGenerateRecommendation}
-                disabled={isGenerating || isSubmitting || !isManager}
-              >
-                {isGenerating ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
-                )}
-                Generate New Recommendation
-              </Button>
+                disabled={isBusy || !isManager}
+                isPending={isBusy}
+                txHash={submitHash}
+                loadingText={isGenerating ? 'Generating…' : 'Confirming...'}
+                defaultText={<><Sparkles className="mr-2 h-4 w-4" />Generate New Recommendation</>}
+              />
             </div>
 
             {(acceptError || rejectError) && (

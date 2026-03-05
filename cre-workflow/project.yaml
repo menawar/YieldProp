@@ -1,26 +1,28 @@
 # Chainlink CRE - YieldProp Project Configuration
 # Global settings shared by all workflows
 # See: https://docs.chain.link/cre/reference/project-configuration-ts
+#
+# NOTE: CRE CLI v1.0.x does not expand ${ENV_VAR} substitutions in project.yaml.
+# RPC URLs are not secrets — embed them directly. Update if you rotate your key.
 
 staging-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: ${SEPOLIA_RPC_URL}
+      url: https://eth-sepolia.g.alchemy.com/v2/xrqrupfvoIoAyq-46c0TlqlP9-H2YIFE
 
 production-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: ${SEPOLIA_RPC_URL}
+      url: https://eth-sepolia.g.alchemy.com/v2/xrqrupfvoIoAyq-46c0TlqlP9-H2YIFE
 
 # Phase 5: Confidential HTTP (Privacy track) – API keys in enclave
 confidential-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: ${SEPOLIA_RPC_URL}
+      url: https://eth-sepolia.g.alchemy.com/v2/xrqrupfvoIoAyq-46c0TlqlP9-H2YIFE
 
 # Tenderly Virtual TestNet - for CRE + Tenderly hackathon track
-# Set TENDERLY_VIRTUAL_TESTNET_RPC in your .env file
 tenderly-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: ${TENDERLY_VIRTUAL_TESTNET_RPC}
+      url: https://virtual.sepolia.eu.rpc.tenderly.co/de868635-7bda-4a76-a272-05cd365c6aa8

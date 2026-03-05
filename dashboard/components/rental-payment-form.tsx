@@ -1,76 +1,54 @@
 'use client'
 
-import { useState } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { useQueryClient } from '@tanstack/react-query'
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { usePropertyContracts } from '@/lib/property-context'
 import { ABIS, formatUsdc } from '@/lib/contracts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { TransactionButton } from '@/components/ui/transaction-button'
 import { DollarSign } from 'lucide-react'
 import { toast } from 'sonner'
-import { getBlockExplorerTxUrl } from '@/lib/utils'
-import { useInvalidateOnTxConfirm } from '@/lib/use-invalidate-on-tx-confirm'
+import { getBlockExplorerTxUrl, getErrorMessage } from '@/lib/utils'
+import { usePropertyData } from '@/lib/use-property-data'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 
 /**
  * Rental payment submission - approve USDC + receiveRentalPayment (Payment Processor only)
  */
+
+const formSchema = z.object({
+  useCurrentPrice: z.boolean(),
+  customAmount: z.number().optional()
+}).refine((data) => data.useCurrentPrice || (data.customAmount && data.customAmount > 0), {
+  message: "Amount must be greater than 0",
+  path: ["customAmount"],
+})
+
 export function RentalPaymentForm() {
-  const { address } = useAccount()
-  const queryClient = useQueryClient()
   const contracts = usePropertyContracts()
-  const [useCurrentPrice, setUseCurrentPrice] = useState(true)
-  const [customAmount, setCustomAmount] = useState('')
+  const { currentRentalPrice, isPaymentProcessor, usdcBalance, yieldDistributorAllowance } = usePropertyData()
 
-  const { data: managerRoleRaw } = useReadContract({
-    address: contracts.YieldDistributor,
-    abi: ABIS.YieldDistributor,
-    functionName: 'PAYMENT_PROCESSOR_ROLE',
+  const { register, watch, formState: { errors, isValid }, reset } = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      useCurrentPrice: true,
+    },
+    mode: "onChange",
   })
-  const managerRole = managerRoleRaw as unknown as `0x${string}` | undefined
 
-  const { data: isPaymentProcessorRaw } = useReadContract({
-    address: contracts.YieldDistributor,
-    abi: ABIS.YieldDistributor,
-    functionName: 'hasRole',
-    args: address && managerRole ? [managerRole, address] : undefined,
-  })
-  const isPaymentProcessor = isPaymentProcessorRaw as unknown as boolean | undefined
-
-  const { data: currentPriceRaw } = useReadContract({
-    address: contracts.PriceManager,
-    abi: ABIS.PriceManager,
-    functionName: 'getCurrentRentalPrice',
-  })
-  const currentPrice = currentPriceRaw as unknown as bigint | undefined
-
-  const { data: usdcBalanceRaw } = useReadContract({
-    address: contracts.MockUSDC,
-    abi: ABIS.ERC20,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-  })
-  const usdcBalance = usdcBalanceRaw as unknown as bigint | undefined
-
-  const { data: allowanceRaw } = useReadContract({
-    address: contracts.MockUSDC,
-    abi: ABIS.ERC20,
-    functionName: 'allowance',
-    args: address ? [address, contracts.YieldDistributor] : undefined,
-  })
-  const allowance = allowanceRaw as unknown as bigint | undefined
+  const useCurrentPrice = watch("useCurrentPrice")
+  const customAmountValue = watch("customAmount")
 
   const { writeContract: approve, data: approveHash, isPending: isApproving } = useWriteContract()
   const { writeContract: receivePayment, data: paymentHash, isPending: isSubmitting } = useWriteContract()
 
-  const { isLoading: isApproveTx, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
-  const { isLoading: isPaymentTx, isSuccess: isPaymentSuccess } = useWaitForTransactionReceipt({ hash: paymentHash })
+  // Calculate required amount
+  const amount = useCurrentPrice && currentRentalPrice
+    ? currentRentalPrice
+    : BigInt(Math.floor((customAmountValue || 0) * 1e6))
 
-  useInvalidateOnTxConfirm(approveHash, isApproveSuccess)
-  useInvalidateOnTxConfirm(paymentHash, isPaymentSuccess)
-
-  const amount = useCurrentPrice && currentPrice ? currentPrice : BigInt(Math.floor(parseFloat(customAmount || '0') * 1e6))
-  const needsApproval = amount > 0n && (allowance === undefined || allowance < amount)
+  const needsApproval = amount > 0n && (yieldDistributorAllowance === undefined || yieldDistributorAllowance < amount)
   const hasBalance = usdcBalance !== undefined && amount <= usdcBalance
 
   const handleApprove = () => {
@@ -92,6 +70,7 @@ export function RentalPaymentForm() {
             ) : undefined,
           })
         },
+        onError: (e) => toast.error(getErrorMessage(e)),
       }
     )
   }
@@ -101,7 +80,7 @@ export function RentalPaymentForm() {
       toast.error('Invalid amount')
       return
     }
-    if (allowance !== undefined && allowance < amount) {
+    if (yieldDistributorAllowance !== undefined && yieldDistributorAllowance < amount) {
       toast.error('Approve USDC first')
       return
     }
@@ -121,18 +100,17 @@ export function RentalPaymentForm() {
               </a>
             ) : undefined,
           })
-          setCustomAmount('')
+          reset({ useCurrentPrice: true, customAmount: undefined })
         },
+        onError: (e) => toast.error(getErrorMessage(e)),
       }
     )
   }
 
   if (!isPaymentProcessor) return null
 
-  const approveBusy = isApproving || isApproveTx
-  const paymentBusy = isSubmitting || isPaymentTx
-  const canApprove = amount > 0n && needsApproval && hasBalance && !approveBusy
-  const canSubmit = amount > 0n && !needsApproval && hasBalance && !paymentBusy
+  const canApprove = amount > 0n && needsApproval && hasBalance && isValid
+  const canSubmit = amount > 0n && !needsApproval && hasBalance && isValid
 
   return (
     <Card>
@@ -146,47 +124,60 @@ export function RentalPaymentForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="use-current"
-            checked={useCurrentPrice}
-            onChange={(e) => setUseCurrentPrice(e.target.checked)}
-            className="rounded"
-          />
-          <label htmlFor="use-current" className="text-sm">Use current rental price ({formatUsdc(currentPrice)})</label>
-        </div>
-        {!useCurrentPrice && (
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Custom amount (USD)</label>
+        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+          <div className="flex items-center gap-2">
             <input
-              type="number"
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-              placeholder="2000.00"
-              min="0"
-              step="0.01"
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              type="checkbox"
+              id="use-current"
+              {...register("useCurrentPrice")}
+              className="rounded"
             />
+            <label htmlFor="use-current" className="text-sm">Use current rental price ({formatUsdc(currentRentalPrice)})</label>
           </div>
-        )}
-        <div className="text-xs text-muted-foreground">
-          Your USDC balance: {formatUsdc(usdcBalance)}
-        </div>
-        {!hasBalance && amount > 0n && (
-          <p className="text-xs text-destructive">Insufficient USDC. Get testnet USDC from a faucet.</p>
-        )}
-        <div className="flex gap-2">
-          {needsApproval ? (
-            <Button size="sm" onClick={handleApprove} disabled={!canApprove}>
-              {approveBusy ? 'Approving...' : '1. Approve USDC'}
-            </Button>
-          ) : (
-            <Button size="sm" onClick={handleSubmitPayment} disabled={!canSubmit}>
-              {paymentBusy ? 'Submitting...' : '2. Submit Payment'}
-            </Button>
+          {!useCurrentPrice && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground flex justify-between">
+                <span>Custom amount (USD)</span>
+                {errors.customAmount && <span className="text-destructive font-semibold">{errors.customAmount.message}</span>}
+              </label>
+              <input
+                type="number"
+                placeholder="2000.00"
+                min="0"
+                step="0.01"
+                {...register("customAmount", { valueAsNumber: true })}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              />
+            </div>
           )}
-        </div>
+          <div className="text-xs text-muted-foreground">
+            Your USDC balance: {formatUsdc(usdcBalance)}
+          </div>
+          {!hasBalance && amount > 0n && (
+            <p className="text-xs text-destructive">Insufficient USDC. Get testnet USDC from a faucet.</p>
+          )}
+          <div className="flex gap-2">
+            {needsApproval ? (
+              <TransactionButton
+                onClick={handleApprove}
+                disabled={!canApprove}
+                isPending={isApproving}
+                txHash={approveHash}
+                loadingText="Approving..."
+                defaultText="1. Approve USDC"
+              />
+            ) : (
+              <TransactionButton
+                onClick={handleSubmitPayment}
+                disabled={!canSubmit}
+                isPending={isSubmitting}
+                txHash={paymentHash}
+                loadingText="Submitting..."
+                defaultText="2. Submit Payment"
+              />
+            )}
+          </div>
+        </form>
       </CardContent>
     </Card>
   )

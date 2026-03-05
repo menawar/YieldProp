@@ -23,7 +23,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 31337,
     },
-    // Tenderly Virtual TestNet - for CRE + Tenderly hackathon track
+    // Tenderly Virtual TestNet
     // chainId must match your fork: 1 = mainnet, 11155111 = Sepolia
     tenderly: {
       url: process.env.TENDERLY_VIRTUAL_TESTNET_RPC || "",

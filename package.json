@@ -1,7 +1,7 @@
 {
-  "name": "yieldprop-mvp",
+  "name": "yieldprop",
   "version": "1.0.0",
-  "description": "AI-Powered Dynamic Real Estate Yield Optimization Protocol for Chainlink Convergence Hackathon",
+  "description": "AI-Powered Dynamic Real Estate Yield Optimization Protocol",
   "main": "index.js",
   "scripts": {
     "test": "hardhat test",
@@ -17,9 +17,19 @@
     "compile:forge": "forge build",
     "deploy": "hardhat run scripts/deploy.ts --network sepolia",
     "deploy:local": "hardhat run scripts/deploy.ts --network hardhat",
+    "deploy:tenderly": "hardhat run scripts/deploy.ts --network tenderly",
+    "deploy:consumer:sepolia": "hardhat run scripts/deploy-consumer.ts --network sepolia",
+    "deploy:consumer:tenderly": "hardhat run scripts/deploy-consumer.ts --network tenderly",
     "sync:addresses": "node scripts/sync-dashboard-addresses.js",
     "mint:usdc": "hardhat run scripts/mint-usdc.ts --network sepolia",
+    "mint:usdc:tenderly": "hardhat run scripts/mint-usdc.ts --network tenderly",
     "verify": "hardhat verify --network sepolia",
+    "cre:setup": "cd cre-workflow/yieldprop-workflow && bun install",
+    "cre:simulate": "cd cre-workflow && cre workflow simulate yieldprop-workflow --target staging-settings",
+    "cre:simulate:production": "cd cre-workflow && cre workflow simulate yieldprop-workflow --target production-settings",
+    "cre:simulate:confidential": "cd cre-workflow && cre workflow simulate yieldprop-workflow --target confidential-settings",
+    "cre:simulate:tenderly": "cd cre-workflow && cre workflow simulate yieldprop-workflow --target tenderly-settings",
+    "tenderly:full": "npm run deploy:tenderly && npm run deploy:consumer:tenderly && npm run cre:simulate:tenderly",
     "node": "hardhat node",
     "clean": "hardhat clean && forge clean",
     "clean:all": "npm run clean && rm -rf node_modules package-lock.json && npm install"
@@ -30,9 +40,7 @@
     "real-estate",
     "tokenization",
     "defi",
-    "chainlink",
-    "ai",
-    "hackathon"
+    "ai"
   ],
   "author": "",
   "license": "MIT",

@@ -1,0 +1,36 @@
+{
+  "network": "sepolia",
+  "timestamp": "2026-02-20T14:19:00.993Z",
+  "deployer": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+  "MockUSDC": "0x300F325E1407C3d2b6D30A71a4996F58F87A1Fc9",
+  "roles": {
+    "propertyManager": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1",
+    "paymentProcessor": "0x2330e78377A36016B99d5a1376b28dA60f54e0F1"
+  },
+  "contracts": {
+    "PropertyToken": "0x94F7406F70a6dAdB99C8b3B5D2a57D3e775C0709",
+    "PriceManager": "0x57B2c87007387FA2BCEaf4A99fc621455b0c8074",
+    "YieldDistributor": "0x1D512C240b3aB8CCc632337eEDf26AB66Fc1E32e",
+    "PropertySale": "0xDBaAf1A557C8a6d982792DFC8aFA7a3968e97E9c",
+    "MockUSDC": "0x300F325E1407C3d2b6D30A71a4996F58F87A1Fc9"
+  },
+  "configuration": {
+    "propertyAddress": "123 Main St, City, State",
+    "propertyType": "Single Family",
+    "propertyValuation": "500000000000000000000000",
+    "initialRentalPrice": "200000000"
+  },
+  "properties": [
+    {
+      "id": "default",
+      "name": "Default Property",
+      "address": "123 Main St, City, State",
+      "contracts": {
+        "PropertyToken": "0x94F7406F70a6dAdB99C8b3B5D2a57D3e775C0709",
+        "PriceManager": "0x57B2c87007387FA2BCEaf4A99fc621455b0c8074",
+        "YieldDistributor": "0x1D512C240b3aB8CCc632337eEDf26AB66Fc1E32e",
+        "PropertySale": "0xDBaAf1A557C8a6d982792DFC8aFA7a3968e97E9c"
+      }
+    }
+  ]
+}

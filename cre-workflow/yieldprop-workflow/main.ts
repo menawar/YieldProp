@@ -221,12 +221,13 @@ function fetchMarketDataConfidential(
 
   const response = sendRequester
     .sendRequest({
-      vaultDonSecrets: [],
+      vaultDonSecrets: [{ key: "RENTCAST_API_KEY", namespace: "main" }],
       request: {
         url: urlStr,
         method: "GET",
         multiHeaders: {
           "Content-Type": { values: ["application/json"] },
+          "X-Api-Key": { values: ["${RENTCAST_API_KEY}"] },
         },
         templatePublicValues: {},
       },

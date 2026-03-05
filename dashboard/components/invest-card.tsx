@@ -6,61 +6,43 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { useQueryClient } from '@tanstack/react-query'
+import { useAccount, useWriteContract } from 'wagmi'
 import { usePropertyContracts } from '@/lib/property-context'
 import { ABIS, formatUsdc } from '@/lib/contracts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { DollarSign } from 'lucide-react'
+import { TransactionButton } from '@/components/ui/transaction-button'
+import { DollarSign, Droplets } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBlockExplorerTxUrl, getErrorMessage } from '@/lib/utils'
-import { useInvalidateOnTxConfirm } from '@/lib/use-invalidate-on-tx-confirm'
+import { usePropertyData } from '@/lib/use-property-data'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 
 const TOKEN_DECIMALS = 18
 const USDC_DECIMALS = 6
 
+const formSchema = z.object({
+  tokenAmount: z.number().min(0.01, "Must buy at least 0.01 tokens").max(100, "Cannot buy more than 100% of the property"),
+})
+
 export function InvestCard() {
   const { address, isConnected } = useAccount()
-  const queryClient = useQueryClient()
   const contracts = usePropertyContracts()
-  const [tokenAmount, setTokenAmount] = useState('')
+  const { saleActive, tokensOfferedForSale, pricePerToken, isWhitelisted, usdcBalance, saleAllowance } = usePropertyData()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => setMounted(true), [])
 
-  const { data: saleActiveRaw } = useReadContract({
-    address: contracts.PropertySale,
-    abi: ABIS.PropertySale,
-    functionName: 'saleActive',
+  const { register, watch, formState: { errors, isValid }, reset } = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    mode: "onChange",
   })
-  const saleActive = saleActiveRaw as unknown as boolean | undefined
 
-  const { data: tokensOfferedForSaleRaw } = useReadContract({
-    address: contracts.PropertySale,
-    abi: ABIS.PropertySale,
-    functionName: 'tokensOfferedForSale',
-  })
-  const tokensOfferedForSale = tokensOfferedForSaleRaw as unknown as bigint | undefined
-
-  const { data: pricePerTokenRaw } = useReadContract({
-    address: contracts.PropertySale,
-    abi: ABIS.PropertySale,
-    functionName: 'pricePerToken',
-  })
-  const pricePerToken = pricePerTokenRaw as unknown as bigint | undefined
-
-  const { data: isWhitelistedRaw } = useReadContract({
-    address: contracts.PropertyToken,
-    abi: ABIS.PropertyToken,
-    functionName: 'isWhitelisted',
-    args: address ? [address] : undefined,
-  })
-  const isWhitelisted = isWhitelistedRaw as unknown as boolean | undefined
-
-  const tokenAmountWei = tokenAmount
-    ? BigInt(Math.floor(parseFloat(tokenAmount) * 10 ** TOKEN_DECIMALS))
+  const tokenAmountValue = watch("tokenAmount")
+  const tokenAmountWei = tokenAmountValue
+    ? BigInt(Math.floor(tokenAmountValue * 10 ** TOKEN_DECIMALS))
     : 0n
 
   // pricePerToken from PropertySale is in USDC (6 decimals). Cost = (tokenAmount * pricePerToken) / 1e18.
@@ -69,42 +51,12 @@ export function InvestCard() {
       ? (tokenAmountWei * pricePerToken) / 10n ** 18n
       : 0n
 
-  const { data: usdcBalanceRaw } = useReadContract({
-    address: contracts.MockUSDC,
-    abi: ABIS.ERC20,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-  })
-  const usdcBalance = usdcBalanceRaw as unknown as bigint | undefined
-
-  const { data: allowanceRaw } = useReadContract({
-    address: contracts.MockUSDC,
-    abi: ABIS.ERC20,
-    functionName: 'allowance',
-    args: address ? [address, contracts.PropertySale] : undefined,
-  })
-  const allowance = allowanceRaw as unknown as bigint | undefined
-
   const needsApproval =
-    displayCostUsdc > 0n && allowance !== undefined && allowance < displayCostUsdc
+    displayCostUsdc > 0n && saleAllowance !== undefined && saleAllowance < displayCostUsdc
 
-  const {
-    writeContract: invest,
-    data: investHash,
-    isPending: isInvestPending,
-  } = useWriteContract()
-
-  const {
-    writeContract: approve,
-    data: approveHash,
-    isPending: isApprovePending,
-  } = useWriteContract()
-
-  const { isLoading: isInvestTxPending, isSuccess: isInvestSuccess } = useWaitForTransactionReceipt({ hash: investHash })
-  const { isLoading: isApproveTxPending, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
-
-  useInvalidateOnTxConfirm(investHash, isInvestSuccess)
-  useInvalidateOnTxConfirm(approveHash, isApproveSuccess)
+  const { writeContract: invest, data: investHash, isPending: isInvestPending } = useWriteContract()
+  const { writeContract: approve, data: approveHash, isPending: isApprovePending } = useWriteContract()
+  const { writeContract: mintUsdc, data: mintUsdcHash, isPending: isMintUsdcPending } = useWriteContract()
 
   const handleApprove = () => {
     if (!displayCostUsdc || displayCostUsdc <= 0n) return
@@ -148,34 +100,60 @@ export function InvestCard() {
               </a>
             ) : undefined,
           })
-          setTokenAmount('')
+          reset()
         },
         onError: (e) => toast.error(getErrorMessage(e)),
       }
     )
   }
 
-  const amountNum = parseFloat(tokenAmount)
+  const handleFaucet = () => {
+    if (!address) return
+    const mintAmount = 10_000n * (10n ** BigInt(USDC_DECIMALS))
+    mintUsdc(
+      {
+        address: contracts.MockUSDC,
+        abi: [...ABIS.ERC20, {
+          inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+          name: 'mint',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        }],
+        functionName: 'mint',
+        args: [address, mintAmount],
+      },
+      {
+        onSuccess: (hash) => {
+          toast.success('Test USDC minted successfully!', {
+            description: hash ? (
+              <a href={getBlockExplorerTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+                View on Etherscan ↗
+              </a>
+            ) : undefined,
+          })
+        },
+        onError: (e) => toast.error(getErrorMessage(e)),
+      }
+    )
+  }
+
+  const amountNum = tokenAmountValue || 0
   const offeredWei = tokensOfferedForSale ?? 0n
   const offeredNum = Number(offeredWei) / 10 ** TOKEN_DECIMALS
-  const isValidAmount =
-    !isNaN(amountNum) &&
-    amountNum > 0 &&
-    amountNum <= 100 &&
-    tokenAmountWei <= offeredWei
+
   const hasEnoughUsdc =
     displayCostUsdc > 0n && usdcBalance !== undefined && usdcBalance >= displayCostUsdc
+
   const canInvest =
     isConnected &&
     saleActive &&
     isWhitelisted &&
-    isValidAmount &&
+    isValid &&
     hasEnoughUsdc &&
     !needsApproval &&
-    !isInvestPending &&
-    !isInvestTxPending
-
-  const isLoading = isInvestPending || isInvestTxPending || isApprovePending || isApproveTxPending
+    amountNum > 0 &&
+    tokenAmountWei <= offeredWei
 
   // Prevent hydration mismatch: server and initial client render same structure until mounted
   if (!mounted || !isConnected) {
@@ -209,35 +187,33 @@ export function InvestCard() {
       </CardHeader>
       <CardContent>
         {contracts.PropertySale === '0x0000000000000000000000000000000000000000' ? (
-          <p className="text-muted-foreground text-sm">
-            PropertySale not deployed. Run{' '}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run deploy:property-sale</code>
-            {' '}then{' '}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run sync:addresses</code>
-            {' '}and restart the dashboard.
-          </p>
+          <div className="rounded-lg border border-dashed p-4 bg-muted/20 text-center text-sm text-muted-foreground">
+            PropertySale contract missing. Please sync network configuration.
+          </div>
         ) : !saleActive ? (
-          <p className="text-muted-foreground text-sm">The token sale is not active. Contact the property manager.</p>
+          <div className="rounded-lg border border-dashed p-4 bg-muted/20 text-center text-sm text-muted-foreground">
+            The token sale is currently closed. Contact the property manager.
+          </div>
         ) : !isWhitelisted ? (
-          <p className="text-muted-foreground text-sm">
-            You must be whitelisted to invest. Contact the property manager to add your address.
-          </p>
+          <div className="rounded-lg border border-dashed border-red-200 p-4 bg-red-50/10 text-center text-sm text-red-800 dark:text-red-200">
+            You must be whitelisted to invest. Contact the property manager.
+          </div>
         ) : (offeredNum <= 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No tokens are currently offered for sale. The property manager must set the offering amount.
-          </p>
+          <div className="rounded-lg border border-dashed p-4 bg-muted/20 text-center text-sm text-muted-foreground">
+            No tokens are currently offered for sale.
+          </div>
         ) : (
-          <div className="space-y-4">
+          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Token amount (1 token = 1% ownership)</label>
+              <label className="text-xs font-medium text-muted-foreground flex justify-between">
+                <span>Token amount (1 token = 1% ownership)</span>
+                {errors.tokenAmount && <span className="text-destructive font-semibold">{errors.tokenAmount.message}</span>}
+              </label>
               <input
                 type="number"
-                min="0.01"
-                max="100"
                 step="0.1"
                 placeholder="e.g. 5"
-                value={tokenAmount}
-                onChange={(e) => setTokenAmount(e.target.value)}
+                {...register("tokenAmount", { valueAsNumber: true })}
                 className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
               />
             </div>
@@ -247,47 +223,54 @@ export function InvestCard() {
                 <span className="font-semibold">{formatUsdc(displayCostUsdc)} USDC</span>
               </div>
             )}
-            {usdcBalance !== undefined && (
-              <p className="text-xs text-muted-foreground">Your USDC balance: {formatUsdc(usdcBalance)}</p>
-            )}
-            {offeredNum > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Available for sale: {offeredNum.toFixed(2)} tokens
-              </p>
-            )}
-            {pricePerToken !== undefined && pricePerToken !== null && pricePerToken > 0n && (
-              <p className="text-xs text-muted-foreground">
-                Price per token: {formatUsdc(pricePerToken)} USDC
-              </p>
-            )}
-            <div className="flex gap-2">
+
+            <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span>Your USDC balance: {formatUsdc(usdcBalance)}</span>
+                <TransactionButton
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0 text-xs flex items-center gap-1"
+                  onClick={handleFaucet}
+                  isPending={isMintUsdcPending}
+                  txHash={mintUsdcHash}
+                  loadingText="Minting..."
+                  defaultText={<><Droplets className="h-3 w-3" /> Get 10k Test USDC</>}
+                />
+              </div>
+              {offeredNum > 0 && <span>Available: {offeredNum.toFixed(2)} tokens</span>}
+            </div>
+
+            <div className="flex gap-2 pt-2">
               {needsApproval ? (
-                <Button
+                <TransactionButton
+                  className="w-full"
                   onClick={handleApprove}
-                  disabled={
-                    !isValidAmount ||
-                    !displayCostUsdc ||
-                    displayCostUsdc <= 0n ||
-                    isApprovePending ||
-                    isApproveTxPending ||
-                    !hasEnoughUsdc
-                  }
-                >
-                  {isApprovePending || isApproveTxPending ? 'Approving…' : 'Approve USDC'}
-                </Button>
+                  isPending={isApprovePending}
+                  txHash={approveHash}
+                  loadingText="Approving..."
+                  defaultText="1. Approve USDC"
+                  disabled={!isValid || displayCostUsdc <= 0n || !hasEnoughUsdc}
+                />
               ) : (
-                <Button onClick={handleInvest} disabled={!canInvest || isLoading}>
-                  {isInvestPending || isInvestTxPending ? 'Purchasing…' : 'Purchase Tokens'}
-                </Button>
+                <TransactionButton
+                  className="w-full"
+                  onClick={handleInvest}
+                  isPending={isInvestPending}
+                  txHash={investHash}
+                  loadingText="Purchasing..."
+                  defaultText={needsApproval === false && amountNum > 0 ? "2. Purchase Tokens" : "Purchase Tokens"}
+                  disabled={!canInvest}
+                />
               )}
             </div>
-            {isValidAmount && !hasEnoughUsdc && usdcBalance !== undefined && displayCostUsdc > 0n && (
-              <p className="text-sm text-destructive">Insufficient USDC balance</p>
+            {isValid && !hasEnoughUsdc && usdcBalance !== undefined && displayCostUsdc > 0n && (
+              <p className="text-sm text-destructive text-center">Insufficient USDC balance</p>
             )}
             {amountNum > 0 && tokenAmountWei > offeredWei && offeredNum > 0 && (
-              <p className="text-sm text-destructive">Amount exceeds tokens offered for sale ({offeredNum.toFixed(2)})</p>
+              <p className="text-sm text-destructive text-center">Amount exceeds tokens offered for sale ({offeredNum.toFixed(2)})</p>
             )}
-          </div>
+          </form>
         )
         )}
       </CardContent>

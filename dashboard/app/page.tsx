@@ -45,16 +45,9 @@ export default function OverviewPage() {
         </div>
 
         {/* Second Row: Deep Dive & Charts */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <YieldChart />
-          </div>
+        <div className="grid gap-6 lg:grid-cols-1">
           <div className="lg:col-span-1">
-            {/* Placeholder for future "Activity Feed" or "Notifications" */}
-            <div className="rounded-lg border border-border bg-card p-6 h-full flex flex-col justify-center items-center text-center">
-              <h3 className="font-serif text-lg mb-2">Recent Activity</h3>
-              <p className="text-muted-foreground text-sm italic">Connect Tenderly wallet to view transaction history.</p>
-            </div>
+            <YieldChart />
           </div>
         </div>
       </main>

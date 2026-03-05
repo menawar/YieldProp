@@ -117,16 +117,7 @@ Run CRE workflows against a **Tenderly Virtual TestNet** for the [Tenderly x CRE
 
 ### 6.1 Create Virtual TestNet
 
-**Option A — Via REST API (recommended):**
-
-```bash
-# Get access key at https://dashboard.tenderly.co → Settings → API Access Tokens
-TENDERLY_ACCESS_KEY=<key> node scripts/create-tenderly-vnet.js
-```
-
-This creates a Sepolia fork with public explorer, and auto-updates `.env` + `project.yaml`.
-
-**Option B — Via Dashboard:**
+**Option — Via Dashboard:**
 
 1. Go to [Tenderly Dashboard](https://dashboard.tenderly.co) → **Virtual TestNets** → **Create**
 2. Fork **Sepolia** (chainId 11155111), enable **Public Explorer** and **State Sync**
@@ -139,25 +130,23 @@ This creates a Sepolia fork with public explorer, and auto-updates `.env` + `pro
 
 ### 6.2 Deploy + Simulate (Full Flow)
 
-One command runs the entire pipeline:
+One command runs the full pipeline currently wired in this repo:
 
 ```bash
 npm run tenderly:full
 ```
 
 This executes:
-1. `setup:tenderly` — injects Tenderly RPC into `cre-workflow/project.yaml`
-2. `deploy:tenderly` — deploys all 5 contracts, auto-updates `config.tenderly.json` with fresh addresses
-3. `verify:tenderly` — checks all contracts are deployed and CRE config is aligned
-4. `cre:simulate:tenderly` — runs the full CRE workflow against Tenderly
+1. `deploy:tenderly` — deploys contracts and updates `config.tenderly.json` with fresh addresses
+2. `deploy:consumer:tenderly` — deploys `RecommendationConsumer` and grants `PROPERTY_MANAGER_ROLE`
+3. `cre:simulate:tenderly` — runs the full CRE workflow against Tenderly
 
 Or step by step:
 
 ```bash
-npm run setup:tenderly          # 1. Configure CRE with Tenderly RPC
-npm run deploy:tenderly         # 2. Deploy contracts to Tenderly VNet
-npm run verify:tenderly         # 3. Verify deployment + CRE config
-npm run cre:simulate:tenderly   # 4. Run CRE workflow simulation
+npm run deploy:tenderly          # 1. Deploy contracts to Tenderly VNet
+npm run deploy:consumer:tenderly # 2. Deploy consumer + grant role
+npm run cre:simulate:tenderly    # 3. Run CRE workflow simulation
 ```
 
 ### 6.3 What the CRE Workflow Does on Tenderly

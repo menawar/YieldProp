@@ -1,11 +1,12 @@
 {
   "schedule": "*/30 * * * * *",
-  "useMockRecommendation": false,
+  "useMockRecommendation": true,
   "useConfidentialHttp": true,
   "propertyAddress": "123 Main St, San Francisco, CA",
   "propertyType": "Single Family",
-  "propertyValuation": 5000,
+  "propertyValuation": 500000,
   "marketDataRadiusMiles": "5",
-  "marketDataApiUrl": "http://localhost:3000/api/market-data",
-  "openaiModel": "gpt-4o-mini"
+  "marketDataApiUrl": "https://your-deployed-dashboard.vercel.app/api/market-data",
+  "openaiModel": "gpt-4o-mini",
+  "_note": "useMockRecommendation=true for local simulation. Set false only for live DON deployment where enclave injects secrets."
 }
